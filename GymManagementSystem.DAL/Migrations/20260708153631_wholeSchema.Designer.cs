@@ -4,6 +4,7 @@ using GymManagementSystem.Dbcontexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace GymManagementSystem.DAL.Migrations
 {
     [DbContext(typeof(GymContext))]
-    partial class GymContextModelSnapshot : ModelSnapshot
+    [Migration("20260708153631_wholeSchema")]
+    partial class wholeSchema
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -61,8 +64,7 @@ namespace GymManagementSystem.DAL.Migrations
                     b.HasIndex("SessionId");
 
                     b.HasIndex("MemberId", "SessionId")
-                        .IsUnique()
-                        .HasFilter("[IsDeleted]=0");
+                        .IsUnique();
 
                     b.ToTable("Bookings", t =>
                         {
@@ -128,9 +130,6 @@ namespace GymManagementSystem.DAL.Migrations
 
                     b.Property<int>("MemberId")
                         .HasColumnType("int");
-
-                    b.Property<string>("Notes")
-                        .HasColumnType("nvarchar(max)");
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("datetime2");
@@ -406,15 +405,15 @@ namespace GymManagementSystem.DAL.Migrations
             modelBuilder.Entity("GymManagementSystem.DAL.Models.Booking", b =>
                 {
                     b.HasOne("GymManagementSystem.DAL.Models.Member", "Member")
-                        .WithMany("Bookings")
+                        .WithMany()
                         .HasForeignKey("MemberId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.HasOne("GymManagementSystem.DAL.Models.Session", "Session")
                         .WithMany("Bookings")
                         .HasForeignKey("SessionId")
-                        .OnDelete(DeleteBehavior.NoAction)
+                        .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
                     b.Navigation("Member");
@@ -523,8 +522,6 @@ namespace GymManagementSystem.DAL.Migrations
 
             modelBuilder.Entity("GymManagementSystem.DAL.Models.Member", b =>
                 {
-                    b.Navigation("Bookings");
-
                     b.Navigation("HealthRecord")
                         .IsRequired();
 

@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -14,7 +14,7 @@
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <!-- ^ Our main css file -->
     <link rel="stylesheet" href="~/css/style.css" />
-    <title>Power fitness | Home</title>
+    <title>@ViewData["Title"] - Power fitness</title>
 </head>
 
 <body>
@@ -31,29 +31,38 @@
                 </button>
 
                 <div class="collapse navbar-collapse" id="navbarSupportedContent">
+                    @{
+                        var currentController = ViewContext.RouteData.Values["controller"]?.ToString();
+                        var menuItems = new List<(string Controller, string Action, string Text, string Url)>
+                        {
+                            ("Home", "Index", "Home", ""),
+                            ("Member", "Index", "Members", ""),
+                            ("Trainer", "", "Trainers", "#"),
+                            ("Session", "", "Sessions", "#"),
+                            ("Plans", "Index", "Plans", ""),
+                            ("Membership", "", "Memberships", "#"),
+                            ("SessionSchedule", "", "Sessions Schedule", "#")
+                        };
+                    }
                     <ul class="navbar-nav m-auto mb-2 mb-lg-0 mt-3 mt-lg-0">
-                        <li class="nav-item">
-                        <li class="nav-item">
-                            <a class="nav-link active px-3 py-2 mx-2 fw-bolder fs-5" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link  px-3 py-2 mx-2 fw-bolder fs-5" aria-current="page" href="#">Members</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link  px-3 py-2 mx-2 fw-bolder fs-5" aria-current="page" href="#">Trainers</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link  px-3 py-2 mx-2 fw-bolder fs-5" aria-current="page" href="#">Sessions</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link  px-3 py-2 mx-2 fw-bolder fs-5" aria-current="page" href="#">Plans</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link  px-3 py-2 mx-2 fw-bolder fs-5" aria-current="page" href="#">Memberships</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link  px-3 py-2 mx-2 fw-bolder fs-5" aria-current="page" href="#">Sessions Schedule</a>
-                        </li>
+                        @foreach (var (controller, action, text, url) in menuItems)
+                        {
+                            var isActive = string.Equals(currentController, controller, StringComparison.OrdinalIgnoreCase);
+                            <li class="nav-item">
+                                @if (string.IsNullOrEmpty(url))
+                                {
+                                    <a class="nav-link @(isActive ? "active" : "") px-3 py-2 mx-2 fw-bolder fs-5" 
+                                       asp-controller="@controller" asp-action="@action"
+                                       aria-current="@(isActive ? "page" : null)">@text</a>
+                                }
+                                else
+                                {
+                                    <a class="nav-link @(isActive ? "active" : "") px-3 py-2 mx-2 fw-bolder fs-5" 
+                                       href="@url"
+                                       aria-current="@(isActive ? "page" : null)">@text</a>
+                                }
+                            </li>
+                        }
                         <li class="nav-item">
                             <form asp-action="Logout" asp-controller="Account" method="post" class="d-inline">
                                 <button type="submit"

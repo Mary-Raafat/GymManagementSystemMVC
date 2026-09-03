@@ -20,6 +20,9 @@ namespace GymManagementSystem.Configurations
 
 
 
+            builder.HasQueryFilter(x => !x.IsDeleted);
+
+
             builder.ToTable(TB
                 =>
             {
