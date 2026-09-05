@@ -49,7 +49,7 @@ namespace GymManagementSystem.BLL.ViewModels.Members
         public string Street { get; set; } = default!;
 
         [Required(ErrorMessage = "Health record is required")]
-        public HealthRecordViewModel HealthRecordViewModel { get; set; } = default!;
+        public CreateHealthRecordViewModel HealthRecordViewModel { get; set; } = default!;
 
     }
 }

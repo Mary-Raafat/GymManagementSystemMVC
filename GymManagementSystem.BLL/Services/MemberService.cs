@@ -106,6 +106,28 @@ namespace GymManagementSystem.BLL.Services
             };
            
         }
+
+        public async Task<HealthRecordDetailsViewModel?> GetHealthRecordDetailsAsync(int memberId, CancellationToken ct = default)
+        {
+            var healthRecord = await memberRepository.GetByIdAsync(id: memberId, 
+                trackChanges: false,
+                includes: [m => m.HealthRecord],
+                cancellationToken: ct);
+
+
+
+
+            if (healthRecord == null) return null!;
+
+
+            return new HealthRecordDetailsViewModel
+            {
+                BloodType = healthRecord.HealthRecord.BloodType.ToString(),
+                Height = healthRecord.HealthRecord.Height,
+                Weight = healthRecord.HealthRecord.Weight,
+                Notes = healthRecord.HealthRecord.Notes
+            };
+        }
     }
 }
 

@@ -46,8 +46,6 @@ namespace GymManagementSystem.PL.Controllers
         }
 
 
-
-
         [HttpGet]
         public async Task<IActionResult> Details(int id)
         {
@@ -55,6 +53,15 @@ namespace GymManagementSystem.PL.Controllers
             if (member == null) return NotFound();
 
             return View(member);
+        }
+
+
+        [HttpGet]
+        public async Task<IActionResult> HealthRecordDetails(int id)
+        {
+            var healthRecord = await memberService.GetHealthRecordDetailsAsync(id);
+            if (healthRecord == null) return NotFound();
+            return View(healthRecord);
         }
 
     }

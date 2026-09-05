@@ -20,14 +20,14 @@ namespace GymManagementSystem.DAL.Implementation
         }
 
 
-        public async Task<IReadOnlyList<TEntity>> FindAsync(
+        public async Task<TEntity> FindAsync(
             Expression<Func<TEntity, bool>> predicate,
             bool trackChanges = false,
             CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet;
             if (!trackChanges) query = query.AsNoTracking();
-            return await query.Where(predicate).ToListAsync(cancellationToken);
+            return await query.Where(predicate).FirstOrDefaultAsync(cancellationToken);
         }
 
         public async Task<IReadOnlyList<TEntity>> FindAsync(

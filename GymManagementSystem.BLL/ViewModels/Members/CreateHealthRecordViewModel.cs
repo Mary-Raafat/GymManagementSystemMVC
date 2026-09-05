@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace GymManagementSystem.BLL.ViewModels.Members
 {
-    public class HealthRecordViewModel
+    public class CreateHealthRecordViewModel
     {
         [Range(0.1, 300, ErrorMessage = "Height must be between 0 and 300")]
         public decimal Height { get; set; }

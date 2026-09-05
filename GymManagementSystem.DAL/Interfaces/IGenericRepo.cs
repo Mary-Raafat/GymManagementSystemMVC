@@ -80,7 +80,7 @@ namespace GymManagementSystem.DAL.Interfaces
 
         // زي ال GetByIdAsync 
         // بس بتجيب ال entity بشرط 
-        Task<IReadOnlyList<TEntity>> FindAsync(
+        Task<TEntity> FindAsync(
             Expression<Func<TEntity, bool>> predicate,
             bool trackChanges = false,
             CancellationToken cancellationToken = default);
