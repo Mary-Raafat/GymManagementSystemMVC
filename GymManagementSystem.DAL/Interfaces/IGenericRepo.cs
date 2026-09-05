@@ -42,7 +42,7 @@ namespace GymManagementSystem.DAL.Interfaces
         //GetByIdAsync with its overloads
 
         // 1- بتجيب entity by id من غير ال navigation properties
-        Task<TEntity?> GetByIdAsync(int id, bool trackChanges = false, CancellationToken cancellationToken = default);
+        Task<TEntity?> GetByIdAsync(int id, bool trackChanges = true, CancellationToken cancellationToken = default);
 
 
         //2- بتجيب بال navigation properties
@@ -80,7 +80,7 @@ namespace GymManagementSystem.DAL.Interfaces
 
         // زي ال GetByIdAsync 
         // بس بتجيب ال entity بشرط 
-        Task<TEntity> FindAsync(
+        Task<TEntity?> FindAsync(
             Expression<Func<TEntity, bool>> predicate,
             bool trackChanges = false,
             CancellationToken cancellationToken = default);

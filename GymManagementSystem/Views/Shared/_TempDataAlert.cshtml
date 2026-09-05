@@ -14,3 +14,11 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }
+@if (TempData["Error"] != null)
+{
+    <div id="alert" class="alert alert-warning alert-dismissible fade show">
+        <i class="bi bi-exclamation-triangle-fill me-2"></i>
+        @TempData["Error"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}

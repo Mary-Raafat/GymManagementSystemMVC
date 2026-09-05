@@ -20,7 +20,7 @@ namespace GymManagementSystem.DAL.Implementation
         }
 
 
-        public async Task<TEntity> FindAsync(
+        public async Task<TEntity?> FindAsync(
             Expression<Func<TEntity, bool>> predicate,
             bool trackChanges = false,
             CancellationToken cancellationToken = default)
@@ -83,7 +83,7 @@ namespace GymManagementSystem.DAL.Implementation
             return await query.ToListAsync(cancellationToken);
         }
 
-        public async Task<TEntity?> GetByIdAsync(int id, bool trackChanges = false, CancellationToken cancellationToken = default)
+        public async Task<TEntity?> GetByIdAsync(int id, bool trackChanges = true, CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet;
             if (!trackChanges) query = query.AsNoTracking();
@@ -93,7 +93,7 @@ namespace GymManagementSystem.DAL.Implementation
         public async Task<TEntity?> GetByIdAsync(
             int id,
             Expression<Func<TEntity, object>>[] includes,
-            bool trackChanges = false,
+            bool trackChanges = true,
             CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet;
@@ -105,7 +105,7 @@ namespace GymManagementSystem.DAL.Implementation
         public async Task<TEntity?> GetByIdAsync(
             int id,
             Func<IQueryable<TEntity>, IQueryable<TEntity>> include,
-            bool trackChanges = false,
+            bool trackChanges = true,
             CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet;

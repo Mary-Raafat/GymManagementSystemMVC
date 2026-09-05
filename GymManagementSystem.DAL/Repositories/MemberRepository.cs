@@ -1,4 +1,4 @@
-﻿using GymManagementSystem.DAL.Interfaces;
+using GymManagementSystem.DAL.Interfaces;
 using GymManagementSystem.DAL.Models;
 using GymManagementSystem.Dbcontexts;
 using Microsoft.EntityFrameworkCore;
@@ -29,11 +29,11 @@ namespace GymManagementSystem.DAL.Implementation
         }
 
         //الايميل مكرر و لا لا 
-        public Task<bool> IsEmailTakenAsync(string normalizedEmail, CancellationToken ct = default)
-       => _context.Set<Member>().AnyAsync(m => m.Email == normalizedEmail, ct);
+        public Task<bool> IsEmailTakenAsync(string normalizedEmail, int? excludeId = null, CancellationToken ct = default)
+            => _context.Set<Member>().AnyAsync(m => m.Email == normalizedEmail && (excludeId == null || m.ID != excludeId), ct);
 
         //الرقم مكرر و لا لا
-        public Task<bool> IsPhoneTakenAsync(string phone, CancellationToken ct = default)
-        => _context.Set<Member>().AnyAsync(m => m.Phone == phone, ct);
+        public Task<bool> IsPhoneTakenAsync(string phone, int? excludeId = null, CancellationToken ct = default)
+            => _context.Set<Member>().AnyAsync(m => m.Phone == phone && (excludeId == null || m.ID != excludeId), ct);
     }
 }

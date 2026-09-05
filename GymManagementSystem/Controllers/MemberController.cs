@@ -35,7 +35,7 @@ namespace GymManagementSystem.PL.Controllers
             var result = await memberService.CreateAsync(viewModel);
             if (result.IsFailure)
             {
-                ModelState.AddModelError(string.Empty, result.ErrorMessage ?? "An unexpected error occurred.");
+                ModelState.AddModelError(result.PropertyName ?? string.Empty, result.ErrorMessage ?? "An unexpected error occurred.");
                 TempData["Error"] = "Cannot Create a member";
 
                 return View(viewModel);
@@ -63,6 +63,44 @@ namespace GymManagementSystem.PL.Controllers
             if (healthRecord == null) return NotFound();
             return View(healthRecord);
         }
+
+
+
+        [HttpGet]
+        public async Task<IActionResult>Edit(int id)
+        {
+            var member =await memberService.GetForEditAsync(id);
+            if(member == null) return NotFound();
+            return View(member);    
+
+        }
+
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> Edit(EditMemberViewModel viewModel, CancellationToken cancellationToken)
+        {
+            if (!ModelState.IsValid)
+            {
+                return View(viewModel);
+            }
+            var result = await memberService.UpdateAsync(viewModel, cancellationToken);
+            if (result.IsFailure)
+            {
+                if (!string.IsNullOrEmpty(result.PropertyName))
+                {
+                    ModelState.AddModelError(result.PropertyName, result.ErrorMessage ?? "An unexpected error occurred.");
+                }
+                else
+                {
+                    TempData["Error"] = result.ErrorMessage ?? "Cannot Update a member";
+                }
+                return View(viewModel);
+            }
+            TempData["SuccessMessage"] = "Member updated successfully!";
+            return RedirectToAction(nameof(Index));
+        }
+
 
     }
 }
