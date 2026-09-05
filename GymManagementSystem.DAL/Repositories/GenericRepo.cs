@@ -22,15 +22,22 @@ namespace GymManagementSystem.DAL.Implementation
 
         public async Task<IReadOnlyList<TEntity>> FindAsync(
             Expression<Func<TEntity, bool>> predicate,
+            bool trackChanges = false,
             CancellationToken cancellationToken = default)
-            => await _dbSet.Where(predicate).ToListAsync(cancellationToken);
+        {
+            IQueryable<TEntity> query = _dbSet;
+            if (!trackChanges) query = query.AsNoTracking();
+            return await query.Where(predicate).ToListAsync(cancellationToken);
+        }
 
         public async Task<IReadOnlyList<TEntity>> FindAsync(
             Expression<Func<TEntity, bool>> predicate,
             Expression<Func<TEntity, object>>[] includes,
+            bool trackChanges = false,
             CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet;
+            if (!trackChanges) query = query.AsNoTracking();
             query = ApplyIncludes(query, includes, null);
             return await query.Where(predicate).ToListAsync(cancellationToken);
         }
@@ -38,43 +45,59 @@ namespace GymManagementSystem.DAL.Implementation
         public async Task<IReadOnlyList<TEntity>> FindAsync(
             Expression<Func<TEntity, bool>> predicate,
             Func<IQueryable<TEntity>, IQueryable<TEntity>> include,
+            bool trackChanges = false,
             CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet;
+            if (!trackChanges) query = query.AsNoTracking();
             query = ApplyIncludes(query, null, include);
             return await query.Where(predicate).ToListAsync(cancellationToken);
         }
 
-        public async Task<IReadOnlyList<TEntity>> GetAllAsync(CancellationToken cancellationToken = default)
-            => await _dbSet.AsNoTracking().ToListAsync(cancellationToken);
+        public async Task<IReadOnlyList<TEntity>> GetAllAsync(bool trackChanges = false, CancellationToken cancellationToken = default)
+        {
+            IQueryable<TEntity> query = _dbSet;
+            if (!trackChanges) query = query.AsNoTracking();
+            return await query.ToListAsync(cancellationToken);
+        }
 
         public async Task<IReadOnlyList<TEntity>> GetAllAsync(
             Expression<Func<TEntity, object>>[] includes,
+            bool trackChanges = false,
             CancellationToken cancellationToken = default)
         {
-            IQueryable<TEntity> query = _dbSet.AsNoTracking();
+            IQueryable<TEntity> query = _dbSet;
+            if (!trackChanges) query = query.AsNoTracking();
             query = ApplyIncludes(query, includes, null);
             return await query.ToListAsync(cancellationToken);
         }
 
         public async Task<IReadOnlyList<TEntity>> GetAllAsync(
             Func<IQueryable<TEntity>, IQueryable<TEntity>> include,
+            bool trackChanges = false,
             CancellationToken cancellationToken = default)
         {
-            IQueryable<TEntity> query = _dbSet.AsNoTracking();
+            IQueryable<TEntity> query = _dbSet;
+            if (!trackChanges) query = query.AsNoTracking();
             query = ApplyIncludes(query, null, include);
             return await query.ToListAsync(cancellationToken);
         }
 
-        public async Task<TEntity?> GetByIdAsync(int id, CancellationToken cancellationToken = default)
-            => await _dbSet.FirstOrDefaultAsync(t => t.ID == id, cancellationToken);
+        public async Task<TEntity?> GetByIdAsync(int id, bool trackChanges = false, CancellationToken cancellationToken = default)
+        {
+            IQueryable<TEntity> query = _dbSet;
+            if (!trackChanges) query = query.AsNoTracking();
+            return await query.FirstOrDefaultAsync(t => t.ID == id, cancellationToken);
+        }
 
         public async Task<TEntity?> GetByIdAsync(
             int id,
             Expression<Func<TEntity, object>>[] includes,
+            bool trackChanges = false,
             CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet;
+            if (!trackChanges) query = query.AsNoTracking();
             query = ApplyIncludes(query, includes, null);
             return await query.FirstOrDefaultAsync(t => t.ID == id, cancellationToken);
         }
@@ -82,22 +105,30 @@ namespace GymManagementSystem.DAL.Implementation
         public async Task<TEntity?> GetByIdAsync(
             int id,
             Func<IQueryable<TEntity>, IQueryable<TEntity>> include,
+            bool trackChanges = false,
             CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet;
+            if (!trackChanges) query = query.AsNoTracking();
             query = ApplyIncludes(query, null, include);
             return await query.FirstOrDefaultAsync(t => t.ID == id, cancellationToken);
         }
 
-        public async Task<TEntity?> GetByIdIncludeDeletedAsync(int id, CancellationToken cancellationToken = default)
-            => await _dbSet.IgnoreQueryFilters().FirstOrDefaultAsync(t => t.ID == id, cancellationToken);
+        public async Task<TEntity?> GetByIdIncludeDeletedAsync(int id, bool trackChanges = false, CancellationToken cancellationToken = default)
+        {
+            IQueryable<TEntity> query = _dbSet.IgnoreQueryFilters();
+            if (!trackChanges) query = query.AsNoTracking();
+            return await query.FirstOrDefaultAsync(t => t.ID == id, cancellationToken);
+        }
 
         public async Task<TEntity?> GetByIdIncludeDeletedAsync(
             int id,
             Expression<Func<TEntity, object>>[] includes,
+            bool trackChanges = false,
             CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet.IgnoreQueryFilters();
+            if (!trackChanges) query = query.AsNoTracking();
             query = ApplyIncludes(query, includes, null);
             return await query.FirstOrDefaultAsync(t => t.ID == id, cancellationToken);
         }
@@ -105,9 +136,11 @@ namespace GymManagementSystem.DAL.Implementation
         public async Task<TEntity?> GetByIdIncludeDeletedAsync(
             int id,
             Func<IQueryable<TEntity>, IQueryable<TEntity>> include,
+            bool trackChanges = false,
             CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet.IgnoreQueryFilters();
+            if (!trackChanges) query = query.AsNoTracking();
             query = ApplyIncludes(query, null, include);
             return await query.FirstOrDefaultAsync(t => t.ID == id, cancellationToken);
         }

@@ -2,6 +2,7 @@ using GymManagementSystem.BLL.Common;
 using GymManagementSystem.BLL.ViewModels.Members;
 using GymManagementSystem.DAL.Interfaces;
 using GymManagementSystem.DAL.Models;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -15,7 +16,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<IEnumerable<MemberViewModel>> GetAllAsync(CancellationToken ct = default)
         {
-            var members = await memberRepository.GetAllAsync(ct);
+            var members = await memberRepository.GetAllAsync(cancellationToken: ct);
             var memberViewModels = members.Select(m => new MemberViewModel
             {
                 Id = m.ID,
@@ -73,6 +74,38 @@ namespace GymManagementSystem.BLL.Services
 
             return Result.Success();
         }
-        
+
+        public async Task<MemberDetailsViewModel?> GetDetailsAsync(int id, CancellationToken cancellationToken = default)
+        {
+
+            //عشان يعرف يجيب ال plans 
+            var member = await memberRepository.GetWithMembershipsAsync(
+                id: id,
+                ct:cancellationToken);
+
+            if (member == null) return null!;
+
+
+            var today = DateTime.Today;
+            Membership? activeMembership = member.Memberships.FirstOrDefault(m => m.EndDate >= today);
+
+            return new MemberDetailsViewModel
+            {
+                Id = member.ID,
+                Name = member.Name,
+                Email = member.Email,
+                Phone = member.Phone,
+                PhotoUrl = member.Photo,
+                Gender=member.Gender.ToString(),
+                DateOfBirth = member.DateOfBirth.ToShortDateString(),
+                Address = $"{member.Address.Street}, {member.Address.City}, {member.Address.BuildingNumber}",
+                PlanName = activeMembership?.Plan?.Name ?? "No Active Plan",
+                MemberShipStartDate = activeMembership?.StartDate.ToShortDateString() ?? "-",
+                MemberShipEndDate = activeMembership?.EndDate.ToShortDateString() ?? "-",
+
+            };
+           
+        }
     }
 }
+

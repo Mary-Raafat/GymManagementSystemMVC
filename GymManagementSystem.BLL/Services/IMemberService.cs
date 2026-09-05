@@ -14,5 +14,6 @@ namespace GymManagementSystem.BLL.Services
         public Task<IEnumerable<MemberViewModel>> GetAllAsync(CancellationToken ct = default);
         public Task<Result> CreateAsync(CreateMemberViewModel viewModel, CancellationToken ct = default);
 
+        public Task<MemberDetailsViewModel?> GetDetailsAsync(int id, CancellationToken ct = default);
     }
 }

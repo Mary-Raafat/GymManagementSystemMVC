@@ -45,5 +45,17 @@ namespace GymManagementSystem.PL.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+
+
+
+        [HttpGet]
+        public async Task<IActionResult> Details(int id)
+        {
+            var member = await memberService.GetDetailsAsync(id);
+            if (member == null) return NotFound();
+
+            return View(member);
+        }
+
     }
 }

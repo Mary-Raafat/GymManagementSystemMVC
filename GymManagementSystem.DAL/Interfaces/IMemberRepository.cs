@@ -9,6 +9,9 @@ namespace GymManagementSystem.DAL.Interfaces
 {
     public interface IMemberRepository:IGenericRepo<Member>
     {
+        public Task<Member?>GetWithMembershipsAsync(int id , CancellationToken ct = default);
+        public Task<bool>IsEmailTakenAsync(string normalizedEmail, CancellationToken ct = default);
+        public Task<bool>IsPhoneTakenAsync(string phone, CancellationToken ct = default);
 
     }
 }
