@@ -100,6 +100,7 @@ namespace GymManagementSystem.DAL.Interfaces
         void Update(TEntity entity);
         Task<bool> ExistAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default);
         Task<TEntity>AddAsync(TEntity entity,CancellationToken cancellationToken=default);
+        void RemoveAsync(TEntity entity);
         Task <TEntity>SoftDeleteAsync(TEntity entity, CancellationToken cancellationToken = default);
         Task<int> SaveChangesAsync(CancellationToken cancellationToken=default);
 

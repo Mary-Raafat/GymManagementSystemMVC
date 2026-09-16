@@ -1,6 +1,7 @@
 using GymManagementSystem.BLL.Services;
 using GymManagementSystem.BLL.ViewModels;
 using GymManagementSystem.BLL.ViewModels.Members;
+using GymManagementSystem.DAL.Models;
 using Microsoft.AspNetCore.Mvc;
 
 namespace GymManagementSystem.PL.Controllers
@@ -100,6 +101,31 @@ namespace GymManagementSystem.PL.Controllers
             TempData["SuccessMessage"] = "Member updated successfully!";
             return RedirectToAction(nameof(Index));
         }
+
+        [HttpGet]
+        public async Task <IActionResult> Delete(int id, CancellationToken cancellationToken )
+        {
+            var member = await memberService.GetDetailsAsync(id, cancellationToken);
+
+            if (member == null) return NotFound();
+            ViewBag.id = member.Id;
+            return View(member);
+        }
+
+        [HttpPost]
+       public async Task<IActionResult>DeleteConfirmed(int id, CancellationToken ct)
+        {
+            var result= await memberService.DeleteAsync(id, ct);
+            if (!result.IsSuccess)
+            {
+                TempData["Error"] =  "Cannot delete the member.";
+                ViewBag.id =id;
+                return View();
+            }
+            TempData["SuccessMessage"] = "Member deleted successfully!";
+            return RedirectToAction(nameof(Index));
+        }
+      
 
 
     }

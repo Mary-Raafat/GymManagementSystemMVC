@@ -19,6 +19,6 @@ namespace GymManagementSystem.BLL.Services
 
         Task<EditMemberViewModel?> GetForEditAsync(int id, CancellationToken ct = default);
         Task<Result> UpdateAsync(EditMemberViewModel viewModel, CancellationToken cancellationToken);
-
+        Task<Result>DeleteAsync(int id, CancellationToken cancellationToken);
     }
 }

@@ -18,16 +18,9 @@ namespace GymManagementSystem.DAL.Implementation
 
 
        //تجيب ال memberships من ال member مع ال plan 
+       //عملتها بال GetByIdAsync
        // مفيده علشان ال GetDetailsAsync 
-        public Task<Member?> GetWithMembershipsAsync(int id, CancellationToken ct = default)
-        {
-         return _context.Set<Member>()
-                .AsNoTracking()
-                .Include(m => m.Memberships)
-                .ThenInclude(ms => ms.Plan)
-                .FirstOrDefaultAsync(m => m.ID == id, ct);
-        }
-
+       
         //الايميل مكرر و لا لا 
         public Task<bool> IsEmailTakenAsync(string normalizedEmail, int? excludeId = null, CancellationToken ct = default)
             => _context.Set<Member>().AnyAsync(m => m.Email == normalizedEmail && (excludeId == null || m.ID != excludeId), ct);

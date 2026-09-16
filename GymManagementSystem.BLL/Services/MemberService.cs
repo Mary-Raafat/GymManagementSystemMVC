@@ -80,9 +80,10 @@ namespace GymManagementSystem.BLL.Services
         {
 
             //عشان يعرف يجيب ال plans 
-            var member = await memberRepository.GetWithMembershipsAsync(
+            var member = await memberRepository.GetByIdAsync(
                 id: id,
-                ct:cancellationToken);
+                include: query => query.Include(m => m.Memberships).ThenInclude(ms => ms.Plan),
+                cancellationToken: cancellationToken);
 
             if (member == null) return null!;
 
@@ -198,6 +199,31 @@ namespace GymManagementSystem.BLL.Services
             await memberRepository.SaveChangesAsync(cancellationToken);
             return Result.Success();
 
+        }
+
+        public async Task<Result> DeleteAsync(int id, CancellationToken cancellationToken)
+        {
+
+            var member = await memberRepository.GetByIdAsync(
+                id,
+                include: query => query.Include(m => m.Bookings).ThenInclude(b => b.Session),
+                cancellationToken: cancellationToken);
+
+
+            bool HasActiveBookings = member.Bookings.Any(b => b.Session.EndDate >= DateTime.UtcNow);
+            if(HasActiveBookings)
+            {
+                return Result.Failure("Cannot delete member with active bookings.");
+            }
+
+            if (member == null)
+            {
+                return Result.Failure("Member not found.", nameof(id));
+            }
+
+            await memberRepository.SoftDeleteAsync(member, cancellationToken);
+            await memberRepository.SaveChangesAsync(cancellationToken);
+            return Result.Success();
         }
     }
 }

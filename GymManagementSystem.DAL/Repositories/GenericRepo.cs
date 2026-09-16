@@ -114,6 +114,9 @@ namespace GymManagementSystem.DAL.Implementation
             return await query.FirstOrDefaultAsync(t => t.ID == id, cancellationToken);
         }
 
+
+
+
         public async Task<TEntity?> GetByIdIncludeDeletedAsync(int id, bool trackChanges = false, CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet.IgnoreQueryFilters();
@@ -180,5 +183,8 @@ namespace GymManagementSystem.DAL.Implementation
 
         public Task<bool> ExistAsync(Expression<Func<TEntity, bool>> predicate, CancellationToken cancellationToken = default)
         => _dbSet.AnyAsync(predicate, cancellationToken);
+
+        public void RemoveAsync(TEntity entity)
+        => _dbSet.Remove(entity);
     }
 }
