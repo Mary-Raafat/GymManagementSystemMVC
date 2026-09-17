@@ -43,7 +43,10 @@ namespace GymManagementSystem.Controllers
 
         // POST: /Plans/Activate/5
         // تفعيل أو تعطيل الخطة
+
         [HttpPost]
+        [ValidateAntiForgeryToken]
+
         public async Task<IActionResult> Activate(int id)
         {
             var plan = await _planRepository.GetByIdAsync(id);

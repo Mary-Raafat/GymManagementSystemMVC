@@ -19,7 +19,8 @@ namespace GymManagementSystem.DAL
         public static IServiceCollection AddGymManagementSystemBLL(this IServiceCollection services)
         {
             
-            services.AddScoped<IMemberService, MemberService>();                
+            services.AddScoped<IMemberService, MemberService>();      
+            services.AddScoped<ITrainerService, TrainerService>();
             return services;
         }
     }

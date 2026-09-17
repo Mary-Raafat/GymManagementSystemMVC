@@ -23,6 +23,7 @@ namespace GymManagementSystem.DAL
             //Dependency Injection
             services.AddScoped<IPlanRepository, PlanRepository>();
             services.AddScoped<IMemberRepository, MemberRepository>();
+            services.AddScoped<ITrainerRepo, TrainerRepo>();
 
             services.AddScoped(typeof(IGenericRepo<>), typeof(GenericRepo<>));
             return services;

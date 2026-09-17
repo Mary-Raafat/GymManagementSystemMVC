@@ -36,12 +36,12 @@ namespace GymManagementSystem.BLL.Services
             var email = viewModel.Email.Trim().ToLower();
             var phone = viewModel.Phone.Trim().ToLower();
             var name = viewModel.Name.Trim().ToLower();
-            if (await memberRepository.ExistAsync(m => m.Email == email, ct))
+            if (await memberRepository.IsEmailTakenAsync(email, ct: ct))
             {
                 return Result.Failure("Email already exists.", nameof(CreateMemberViewModel.Email));
             }
 
-            if (await memberRepository.ExistAsync(m => m.Phone == phone, ct))
+            if (await memberRepository.IsPhoneTakenAsync(phone, ct: ct))
             {
                 return Result.Failure("Phone number already exists.", nameof(CreateMemberViewModel.Phone));
             }
@@ -206,9 +206,14 @@ namespace GymManagementSystem.BLL.Services
 
             var member = await memberRepository.GetByIdAsync(
                 id,
-                include: query => query.Include(m => m.Bookings).ThenInclude(b => b.Session),
+                include: query => query.Include(m => m.HealthRecord)
+                                       .Include(m => m.Bookings).ThenInclude(b => b.Session),
                 cancellationToken: cancellationToken);
 
+            if (member == null)
+            {
+                return Result.Failure("Member not found.", nameof(id));
+            }
 
             bool HasActiveBookings = member.Bookings.Any(b => b.Session.EndDate >= DateTime.UtcNow);
             if(HasActiveBookings)
@@ -216,9 +221,10 @@ namespace GymManagementSystem.BLL.Services
                 return Result.Failure("Cannot delete member with active bookings.");
             }
 
-            if (member == null)
+            if (member.HealthRecord != null)
             {
-                return Result.Failure("Member not found.", nameof(id));
+                member.HealthRecord.IsDeleted = true;
+                member.HealthRecord.DeletedAt = DateTime.UtcNow;
             }
 
             await memberRepository.SoftDeleteAsync(member, cancellationToken);

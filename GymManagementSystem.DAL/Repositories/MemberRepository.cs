@@ -23,10 +23,10 @@ namespace GymManagementSystem.DAL.Implementation
        
         //الايميل مكرر و لا لا 
         public Task<bool> IsEmailTakenAsync(string normalizedEmail, int? excludeId = null, CancellationToken ct = default)
-            => _context.Set<Member>().AnyAsync(m => m.Email == normalizedEmail && (excludeId == null || m.ID != excludeId), ct);
+            => _context.Users.AnyAsync(u => u.Email == normalizedEmail && (excludeId == null || u.ID != excludeId), ct);
 
         //الرقم مكرر و لا لا
         public Task<bool> IsPhoneTakenAsync(string phone, int? excludeId = null, CancellationToken ct = default)
-            => _context.Set<Member>().AnyAsync(m => m.Phone == phone && (excludeId == null || m.ID != excludeId), ct);
+            => _context.Users.AnyAsync(u => u.Phone == phone && (excludeId == null || u.ID != excludeId), ct);
     }
 }
