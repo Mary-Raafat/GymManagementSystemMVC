@@ -1,0 +1,123 @@
+@model SessionAttendanceViewModel
+
+@{
+    ViewData["Title"] = "Session Attendees";
+}
+
+<div class="container mt-4">
+    <partial name="_TempDataAlert" />
+
+    <header class="d-flex justify-content-between mb-4 align-items-center">
+        <div>
+            <h3 class="text-primary-color mb-0">Session Attendees & Attendance</h3>
+            <p class="text-muted">Manage booked members and record attendance for this session</p>
+        </div>
+        <a asp-controller="SessionSchedule" asp-action="Index" class="btn btn-outline">
+            <i class="bi bi-arrow-left me-1"></i>Back to Schedule
+        </a>
+    </header>
+
+    <!-- Session Info Card -->
+    <div class="card bg-light border-0 p-3 mb-4">
+        <div class="row align-items-center">
+            <div class="col-md-3">
+                <small class="text-muted d-block">Session</small>
+                <h5 class="text-primary-color mb-0">@Model.CategoryName</h5>
+            </div>
+            <div class="col-md-3">
+                <small class="text-muted d-block">Trainer</small>
+                <span class="fw-bold">@Model.TrainerName</span>
+            </div>
+            <div class="col-md-3">
+                <small class="text-muted d-block">Schedule</small>
+                <span>@Model.DateDisplay (@Model.TimeRangeDisplay)</span>
+            </div>
+            <div class="col-md-3 text-md-end">
+                <small class="text-muted d-block">Bookings</small>
+                <span class="badge bg-primary-color">@Model.BookedCount / @Model.Capacity Booked</span>
+            </div>
+        </div>
+    </div>
+
+    @if (Model.Bookings != null && Model.Bookings.Any())
+    {
+        <div class="table-responsive" style="overflow: visible;">
+            <table class="table table-borderless">
+                <thead>
+                    <tr>
+                        <th><span>Member Name</span></th>
+                        <th><span>Phone</span></th>
+                        <th><span>Booking Date</span></th>
+                        <th><span>Attendance</span></th>
+                        <th><span>Actions</span></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var booking in Model.Bookings)
+                    {
+                        <tr>
+                            <td><span class="fw-bold">@booking.MemberName</span></td>
+                            <td><span>@booking.MemberPhone</span></td>
+                            <td><span>@booking.BookingDateDisplay</span></td>
+                            <td>
+                                @if (booking.IsAttended)
+                                {
+                                    <span class="badge bg-success">
+                                        <i class="bi bi-check-circle me-1"></i>Attended
+                                    </span>
+                                }
+                                else
+                                {
+                                    <span class="badge bg-secondary">
+                                        <i class="bi bi-dash-circle me-1"></i>Not Attended
+                                    </span>
+                                }
+                            </td>
+                            <td>
+                                <div class="d-flex gap-2">
+                                    <form asp-controller="SessionSchedule" asp-action="ToggleAttendance" method="post" class="d-inline">
+                                        <input type="hidden" name="bookingId" value="@booking.BookingId" />
+                                        <input type="hidden" name="sessionId" value="@Model.SessionId" />
+                                        <button type="submit" class="btn btn-outline btn-sm @(booking.IsAttended ? "text-warning" : "text-success")">
+                                            @if (booking.IsAttended)
+                                            {
+                                                <i class="bi bi-arrow-counterclockwise me-1">Mark Absent</i>
+                                            }
+                                            else
+                                            {
+                                                <i class="bi bi-check2 me-1">Mark Attended</i>
+                                            }
+                                        </button>
+                                    </form>
+
+                                    <form asp-controller="SessionSchedule" asp-action="CancelBooking" method="post" class="d-inline" onsubmit="return confirm('Are you sure you want to cancel this booking?');">
+                                        <input type="hidden" name="bookingId" value="@booking.BookingId" />
+                                        <input type="hidden" name="sessionId" value="@Model.SessionId" />
+                                        <button type="submit" class="btn btn-outline btn-sm text-danger">
+                                            <i class="bi bi-x-circle me-1">Cancel</i>
+                                        </button>
+                                    </form>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    }
+    else
+    {
+        <div class="text-center py-5">
+            <i class="bi bi-people display-1 text-muted"></i>
+            <h4 class="mt-3 text-muted">No Bookings Yet</h4>
+            <p class="text-muted">No members have booked for this session yet</p>
+            <a asp-controller="SessionSchedule" asp-action="Book" asp-route-sessionId="@Model.SessionId" class="btn btn-fill mt-2">
+                <i class="bi bi-person-plus me-1"></i>Book First Member
+            </a>
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <partial name="_AlertDismissScript" />
+}

@@ -1,0 +1,101 @@
+@model SessionDetailsViewModel
+
+@{
+    ViewData["Title"] = "Session Details";
+}
+
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-7">
+            <div class="card shadow-lg border-0">
+                <div class="card-header bg-primary-color text-white text-center py-4">
+                    <i class="bi bi-calendar-event display-4 mb-2"></i>
+                    <h2 class="mb-0">@Model.CategoryName Session</h2>
+                    <span class="badge @(Model.Status == "Ongoing" ? "bg-success" : Model.Status == "Upcoming" ? "bg-light text-primary-color" : "bg-secondary") mt-2">
+                        @Model.Status
+                    </span>
+                </div>
+                <div class="card-body p-4">
+                    <div class="plan-details">
+                        <!-- Description -->
+                        <div class="detail-item mb-4">
+                            <div class="d-flex align-items-start mb-2">
+                                <div class="icon-box me-3">
+                                    <i class="bi bi-card-text text-primary-color fs-4"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 text-muted">Description</h6>
+                                    <p class="mb-0 fw-bold">@Model.Description</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Trainer -->
+                        <div class="detail-item mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-box me-3">
+                                    <i class="bi bi-person-badge text-primary-color fs-4"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 text-muted">Trainer</h6>
+                                    <p class="mb-0 fw-bold">@Model.TrainerName</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Schedule -->
+                        <div class="detail-item mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-box me-3">
+                                    <i class="bi bi-clock-history text-primary-color fs-4"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 text-muted">Schedule</h6>
+                                    <p class="mb-0 fw-bold">@Model.StartDate &rarr; @Model.EndDate</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Capacity & Bookings -->
+                        <div class="detail-item mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-box me-3">
+                                    <i class="bi bi-people text-primary-color fs-4"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 text-muted">Capacity & Availability</h6>
+                                    <p class="mb-0 fw-bold">
+                                        <span class="text-success">@Model.AvailableSlots Available</span> / @Model.Capacity Max Capacity
+                                        <span class="text-muted fw-normal">(@Model.BookedSlots Booked)</span>
+                                    </p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Created At -->
+                        <div class="detail-item mb-4">
+                            <div class="d-flex align-items-center mb-2">
+                                <div class="icon-box me-3">
+                                    <i class="bi bi-calendar-check text-primary-color fs-4"></i>
+                                </div>
+                                <div>
+                                    <h6 class="mb-0 text-muted">Created At</h6>
+                                    <p class="mb-0 fw-bold">@Model.CreatedAt</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="d-flex justify-content-between gap-3 pt-3 border-top">
+                            <a asp-controller="Session" asp-action="Index" class="btn btn-outline flex-fill">
+                                <i class="bi bi-arrow-left me-1"></i>Back to List
+                            </a>
+                            <a asp-controller="Session" asp-action="Edit" asp-route-id="@Model.Id" class="btn btn-fill flex-fill">
+                                <i class="bi bi-pencil me-1"></i>Edit Session
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

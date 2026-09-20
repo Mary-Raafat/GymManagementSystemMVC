@@ -1,101 +1,90 @@
-using GymManagementSystem.DAL.Repositories;
-using GymManagementSystem.Models;
+using GymManagementSystem.BLL.Services;
+using GymManagementSystem.BLL.ViewModels.Plan;
 using Microsoft.AspNetCore.Mvc;
-using GymManagementSystem.DAL.Interfaces;
 
-namespace GymManagementSystem.Controllers
+namespace GymManagementSystem.PL.Controllers
 {
-    public class PlansController : Controller
+    public class PlansController(IPlanService planService) : Controller
     {
-        private readonly IPlanRepository _planRepository;
-
-        public PlansController(IPlanRepository planrepo)
-        {
-            _planRepository = planrepo;   
-        }
-
         // GET: /Plans/
-        // جلب كل الـ plans من قاعدة البيانات وإرسالها للـ view
+        [HttpGet]
         public async Task<IActionResult> Index()
         {
-            var plans = await _planRepository.GetAllAsync();
-            return View(plans); 
+            var plans = await planService.GetAllAsync();
+            return View(plans);
         }
 
         // GET: /Plans/Details/5
-        // جلب خطة معينة بناءً على الـ ID
-        public async Task<IActionResult> Details(int? id) 
+        [HttpGet]
+        public async Task<IActionResult> Details(int id)
         {
-            if (id == null)
-            {
-                return RedirectToAction(nameof(Index));
-            }
-
-            var plan = await _planRepository.GetByIdAsync(id.Value);
-
+            var plan = await planService.GetDetailsAsync(id);
             if (plan == null)
             {
-                return RedirectToAction(nameof(Index)); 
+                return NotFound();
             }
 
             return View(plan);
         }
 
         // POST: /Plans/Activate/5
-        // تفعيل أو تعطيل الخطة
-
         [HttpPost]
         [ValidateAntiForgeryToken]
-
         public async Task<IActionResult> Activate(int id)
         {
-            var plan = await _planRepository.GetByIdAsync(id);
-            if (plan != null)
+            var result = await planService.ToggleStatusAsync(id);
+            if (result.IsFailure)
             {
-                plan.IsActive = !plan.IsActive;
-                _planRepository.Update(plan);
-                await _planRepository.SaveChangesAsync();
+                TempData["Error"] = result.ErrorMessage ?? "Cannot update plan status.";
             }
+            else
+            {
+                TempData["SuccessMessage"] = "Plan status updated successfully!";
+            }
+
             return RedirectToAction(nameof(Index));
         }
 
         // GET: /Plans/Edit/5
-        // عرض صفحة تعديل الخطة
-        public async Task<IActionResult> Edit(int? id)
+        [HttpGet]
+        public async Task<IActionResult> Edit(int id)
         {
-            if (id == null)
-            {
-                return RedirectToAction(nameof(Index));
-            }
-
-            var plan = await _planRepository.GetByIdAsync(id.Value);
+            var plan = await planService.GetForEditAsync(id);
             if (plan == null)
             {
-                return RedirectToAction(nameof(Index));
+                return NotFound();
             }
+
             return View(plan);
         }
 
         // POST: /Plans/Edit/5
-        // حفظ تعديلات الخطة
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, Plan plan)
+        public async Task<IActionResult> Edit(EditPlanViewModel viewModel, CancellationToken ct = default)
         {
-            if (id != plan.ID)
+            if (!ModelState.IsValid)
             {
-                return BadRequest();
+                return View(viewModel);
             }
 
-            if (ModelState.IsValid)
+            var result = await planService.UpdateAsync(viewModel, ct);
+            if (result.IsFailure)
             {
-                _planRepository.Update(plan);
-                await _planRepository.SaveChangesAsync();
-                return RedirectToAction(nameof(Index));
+                if (!string.IsNullOrEmpty(result.PropertyName))
+                {
+                    ModelState.AddModelError(result.PropertyName, result.ErrorMessage ?? "An unexpected error occurred.");
+                }
+                else
+                {
+                    TempData["Error"] = result.ErrorMessage ?? "Cannot update plan.";
+                }
+
+                return View(viewModel);
             }
-            return View(plan);
+
+            TempData["SuccessMessage"] = "Plan updated successfully!";
+            return RedirectToAction(nameof(Index));
         }
     }
 }
-
-

@@ -24,6 +24,9 @@ namespace GymManagementSystem.DAL
             services.AddScoped<IPlanRepository, PlanRepository>();
             services.AddScoped<IMemberRepository, MemberRepository>();
             services.AddScoped<ITrainerRepo, TrainerRepo>();
+            services.AddScoped<ISessionRepo, SessionRepo>();
+            services.AddScoped<IMembershipRepo, MembershipRepo>();
+            services.AddScoped<IBookingRepo, BookingRepo>();
 
             services.AddScoped(typeof(IGenericRepo<>), typeof(GenericRepo<>));
             return services;

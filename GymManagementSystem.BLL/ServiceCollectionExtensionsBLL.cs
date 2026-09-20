@@ -21,6 +21,10 @@ namespace GymManagementSystem.DAL
             
             services.AddScoped<IMemberService, MemberService>();      
             services.AddScoped<ITrainerService, TrainerService>();
+            services.AddScoped<ISessionService, SessionService>();
+            services.AddScoped<IPlanService, PlanService>();
+            services.AddScoped<IMembershipService, MembershipService>();
+            services.AddScoped<ISessionScheduleService, SessionScheduleService>();
             return services;
         }
     }
