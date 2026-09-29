@@ -14,14 +14,14 @@ using System.Threading.Tasks;
 
 namespace GymManagementSystem.BLL.Services
 {
-    public class TrainerService(ITrainerRepo trainerRepo) : ITrainerService
+    public class TrainerService(IUnitOfWork unitOfWork) : ITrainerService
     {
-        private readonly ITrainerRepo _trainerRepo = trainerRepo;
+        private readonly IUnitOfWork _unitOfWork = unitOfWork;
 
 
         public async Task<IEnumerable<TrainerViewModel>>  GetAllAsync(CancellationToken ct=default)
         {
-            var trainers=await _trainerRepo.GetAllAsync(cancellationToken: ct);
+            var trainers=await _unitOfWork.Trainers.GetAllAsync(cancellationToken: ct);
             var trainerViewModels = trainers.Select(t => new TrainerViewModel
             {
                 Id = t.ID,
@@ -38,12 +38,12 @@ namespace GymManagementSystem.BLL.Services
             var email = viewModel.Email.Trim().ToLower();
             var phone = viewModel.Phone.Trim().ToLower();
             var name = viewModel.Name.Trim().ToLower();
-            if (await _trainerRepo.IsEmailTakenAsync(email, ct: ct))
+            if (await _unitOfWork.Trainers.IsEmailTakenAsync(email, ct: ct))
             {
                 return Result.Failure("Email already exists.", nameof(CreateTrainerViewModel.Email));
             }
 
-            if (await _trainerRepo.IsPhoneTakenAsync(phone, ct: ct))
+            if (await _unitOfWork.Trainers.IsPhoneTakenAsync(phone, ct: ct))
             {
                 return Result.Failure("Phone number already exists.", nameof(CreateTrainerViewModel.Phone));
             }
@@ -62,8 +62,8 @@ namespace GymManagementSystem.BLL.Services
 
                 Speciality = viewModel.Specialization
             };
-            await _trainerRepo.AddAsync(trainer, ct);
-            var rowsAffected = await _trainerRepo.SaveChangesAsync(ct);
+            await _unitOfWork.Trainers.AddAsync(trainer, ct);
+            var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
                 return Result.Failure("Failed to add trainer.");
@@ -74,7 +74,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<TrainerDetailsViewModel?> GetDetailsAsync(int id, CancellationToken ct = default)
         {
-            var trainer = await _trainerRepo.GetByIdAsync(id: id, cancellationToken: ct);
+            var trainer = await _unitOfWork.Trainers.GetByIdAsync(id: id, cancellationToken: ct);
             if (trainer == null)
             {
                 return null;
@@ -94,7 +94,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<EditTrainerViewModel?> GetForEditAsync(int id, CancellationToken ct = default)
         {
-            var trainer = await _trainerRepo.GetByIdAsync(id: id, cancellationToken: ct);
+            var trainer = await _unitOfWork.Trainers.GetByIdAsync(id: id, cancellationToken: ct);
             if (trainer == null)
             {
                 return null;
@@ -117,7 +117,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<Result> UpdateAsync(EditTrainerViewModel viewModel, CancellationToken cancellationToken = default)
         {
-            var trainer = await _trainerRepo.GetByIdAsync(id: viewModel.Id, cancellationToken: cancellationToken);
+            var trainer = await _unitOfWork.Trainers.GetByIdAsync(id: viewModel.Id, cancellationToken: cancellationToken);
             if (trainer == null)
             {
                 return Result.Failure("Trainer not found.", nameof(viewModel.Id));
@@ -140,12 +140,12 @@ namespace GymManagementSystem.BLL.Services
                 return Result.Failure("No changes were made.");
             }
 
-            if (isEmailChanged && await _trainerRepo.IsEmailTakenAsync(normalizedEmail, excludeId: viewModel.Id, ct: cancellationToken))
+            if (isEmailChanged && await _unitOfWork.Trainers.IsEmailTakenAsync(normalizedEmail, excludeId: viewModel.Id, ct: cancellationToken))
             {
                 return Result.Failure("Email already exists.", nameof(viewModel.Email));
             }
 
-            if (isPhoneChanged && await _trainerRepo.IsPhoneTakenAsync(normalizedPhone, excludeId: viewModel.Id, ct: cancellationToken))
+            if (isPhoneChanged && await _unitOfWork.Trainers.IsPhoneTakenAsync(normalizedPhone, excludeId: viewModel.Id, ct: cancellationToken))
             {
                 return Result.Failure("Phone number already exists.", nameof(viewModel.Phone));
             }
@@ -160,14 +160,14 @@ namespace GymManagementSystem.BLL.Services
                 BuildingNumber = viewModel.BuildingNumber
             };
 
-            _trainerRepo.Update(trainer);
-            await _trainerRepo.SaveChangesAsync(cancellationToken);
+            _unitOfWork.Trainers.Update(trainer);
+            await _unitOfWork.CompleteAsync(cancellationToken);
             return Result.Success();
         }
 
         public async Task<Result> DeleteAsync(int id, CancellationToken cancellationToken)
         {
-            var trainer = await _trainerRepo.GetByIdAsync(
+            var trainer = await _unitOfWork.Trainers.GetByIdAsync(
               id,
               include: query => query.Include(t=>t.Sessions),
               cancellationToken: cancellationToken);
@@ -184,8 +184,8 @@ namespace GymManagementSystem.BLL.Services
             }
 
             
-            await _trainerRepo.SoftDeleteAsync(trainer, cancellationToken);
-            await _trainerRepo.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.Trainers.SoftDeleteAsync(trainer, cancellationToken);
+            await _unitOfWork.CompleteAsync(cancellationToken);
             return Result.Success();
         }
 

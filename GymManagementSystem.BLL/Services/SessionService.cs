@@ -12,17 +12,13 @@ using System.Threading.Tasks;
 namespace GymManagementSystem.BLL.Services
 {
     public class SessionService(
-        ISessionRepo sessionRepo,
-        ITrainerRepo trainerRepo,
-        IGenericRepo<Category> categoryRepo) : ISessionService
+        IUnitOfWork unitOfWork) : ISessionService
     {
-        private readonly ISessionRepo _sessionRepo = sessionRepo;
-        private readonly ITrainerRepo _trainerRepo = trainerRepo;
-        private readonly IGenericRepo<Category> _categoryRepo = categoryRepo;
+        private readonly IUnitOfWork _unitOfWork = unitOfWork;
 
         public async Task<IEnumerable<SessionViewModel>> GetAllAsync(CancellationToken ct = default)
         {
-            var sessions = await _sessionRepo.GetAllAsync(
+            var sessions = await _unitOfWork.Sessions.GetAllAsync(
                 include: query => query.Include(s => s.Trainer)
                                        .Include(s => s.Category)
                                        .Include(s => s.Bookings),
@@ -55,19 +51,19 @@ namespace GymManagementSystem.BLL.Services
                 return Result.Failure("Start date cannot be in the past.", nameof(CreateSessionViewModel.StartDate));
             }
 
-            var trainerExists = await _trainerRepo.ExistAsync(t => t.ID == viewModel.TrainerId, ct);
+            var trainerExists = await _unitOfWork.Trainers.ExistAsync(t => t.ID == viewModel.TrainerId, ct);
             if (!trainerExists)
             {
                 return Result.Failure("Selected trainer does not exist.", nameof(CreateSessionViewModel.TrainerId));
             }
 
-            var categoryExists = await _categoryRepo.ExistAsync(c => c.ID == viewModel.CategoryId, ct);
+            var categoryExists = await _unitOfWork.Categories.ExistAsync(c => c.ID == viewModel.CategoryId, ct);
             if (!categoryExists)
             {
                 return Result.Failure("Selected category does not exist.", nameof(CreateSessionViewModel.CategoryId));
             }
 
-            if (await _sessionRepo.HasTrainerConflictAsync(viewModel.TrainerId, viewModel.StartDate, viewModel.EndDate, ct: ct))
+            if (await _unitOfWork.Sessions.HasTrainerConflictAsync(viewModel.TrainerId, viewModel.StartDate, viewModel.EndDate, ct: ct))
             {
                 return Result.Failure("Trainer already has another session scheduled during this time period.", nameof(CreateSessionViewModel.TrainerId));
             }
@@ -82,8 +78,8 @@ namespace GymManagementSystem.BLL.Services
                 CategoryId = viewModel.CategoryId
             };
 
-            await _sessionRepo.AddAsync(session, ct);
-            var rowsAffected = await _sessionRepo.SaveChangesAsync(ct);
+            await _unitOfWork.Sessions.AddAsync(session, ct);
+            var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
                 return Result.Failure("Failed to add session.");
@@ -94,7 +90,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<SessionDetailsViewModel?> GetDetailsAsync(int id, CancellationToken ct = default)
         {
-            var session = await _sessionRepo.GetByIdAsync(
+            var session = await _unitOfWork.Sessions.GetByIdAsync(
                 id: id,
                 include: query => query.Include(s => s.Trainer)
                                        .Include(s => s.Category)
@@ -131,7 +127,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<EditSessionViewModel?> GetForEditAsync(int id, CancellationToken ct = default)
         {
-            var session = await _sessionRepo.GetByIdAsync(id: id, cancellationToken: ct);
+            var session = await _unitOfWork.Sessions.GetByIdAsync(id: id, cancellationToken: ct);
             if (session == null)
             {
                 return null;
@@ -151,7 +147,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<Result> UpdateAsync(EditSessionViewModel viewModel, CancellationToken cancellationToken = default)
         {
-            var session = await _sessionRepo.GetByIdAsync(id: viewModel.Id, cancellationToken: cancellationToken);
+            var session = await _unitOfWork.Sessions.GetByIdAsync(id: viewModel.Id, cancellationToken: cancellationToken);
             if (session == null)
             {
                 return Result.Failure("Session not found.", nameof(viewModel.Id));
@@ -177,7 +173,7 @@ namespace GymManagementSystem.BLL.Services
 
             if (isTrainerChanged)
             {
-                var trainerExists = await _trainerRepo.ExistAsync(t => t.ID == viewModel.TrainerId, cancellationToken);
+                var trainerExists = await _unitOfWork.Trainers.ExistAsync(t => t.ID == viewModel.TrainerId, cancellationToken);
                 if (!trainerExists)
                 {
                     return Result.Failure("Selected trainer does not exist.", nameof(EditSessionViewModel.TrainerId));
@@ -186,7 +182,7 @@ namespace GymManagementSystem.BLL.Services
 
             if (isCategoryChanged)
             {
-                var categoryExists = await _categoryRepo.ExistAsync(c => c.ID == viewModel.CategoryId, cancellationToken);
+                var categoryExists = await _unitOfWork.Categories.ExistAsync(c => c.ID == viewModel.CategoryId, cancellationToken);
                 if (!categoryExists)
                 {
                     return Result.Failure("Selected category does not exist.", nameof(EditSessionViewModel.CategoryId));
@@ -195,7 +191,7 @@ namespace GymManagementSystem.BLL.Services
 
             if (isTrainerChanged || isStartDateChanged || isEndDateChanged)
             {
-                if (await _sessionRepo.HasTrainerConflictAsync(viewModel.TrainerId, viewModel.StartDate, viewModel.EndDate, excludeSessionId: viewModel.Id, ct: cancellationToken))
+                if (await _unitOfWork.Sessions.HasTrainerConflictAsync(viewModel.TrainerId, viewModel.StartDate, viewModel.EndDate, excludeSessionId: viewModel.Id, ct: cancellationToken))
                 {
                     return Result.Failure("Trainer already has another session scheduled during this time period.", nameof(EditSessionViewModel.TrainerId));
                 }
@@ -208,14 +204,14 @@ namespace GymManagementSystem.BLL.Services
             session.TrainerId = viewModel.TrainerId;
             session.CategoryId = viewModel.CategoryId;
 
-            _sessionRepo.Update(session);
-            await _sessionRepo.SaveChangesAsync(cancellationToken);
+            _unitOfWork.Sessions.Update(session);
+            await _unitOfWork.CompleteAsync(cancellationToken);
             return Result.Success();
         }
 
         public async Task<Result> DeleteAsync(int id, CancellationToken cancellationToken = default)
         {
-            var session = await _sessionRepo.GetByIdAsync(
+            var session = await _unitOfWork.Sessions.GetByIdAsync(
                 id: id,
                 include: query => query.Include(s => s.Bookings),
                 cancellationToken: cancellationToken);
@@ -231,14 +227,14 @@ namespace GymManagementSystem.BLL.Services
                 return Result.Failure("Cannot delete a session that has active bookings.");
             }
 
-            await _sessionRepo.SoftDeleteAsync(session, cancellationToken);
-            await _sessionRepo.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.Sessions.SoftDeleteAsync(session, cancellationToken);
+            await _unitOfWork.CompleteAsync(cancellationToken);
             return Result.Success();
         }
 
         public async Task<IEnumerable<SessionLookupViewModel>> GetTrainersLookupAsync(CancellationToken ct = default)
         {
-            var trainers = await _trainerRepo.GetAllAsync(cancellationToken: ct);
+            var trainers = await _unitOfWork.Trainers.GetAllAsync(cancellationToken: ct);
             return trainers.Select(t => new SessionLookupViewModel
             {
                 Id = t.ID,
@@ -248,7 +244,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<IEnumerable<SessionLookupViewModel>> GetCategoriesLookupAsync(CancellationToken ct = default)
         {
-            var categories = await _categoryRepo.GetAllAsync(cancellationToken: ct);
+            var categories = await _unitOfWork.Categories.GetAllAsync(cancellationToken: ct);
             return categories.Select(c => new SessionLookupViewModel
             {
                 Id = c.ID,

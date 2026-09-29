@@ -9,21 +9,18 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.VisualBasic;
 
 namespace GymManagementSystem.BLL.Services
 {
     public class MembershipService(
-        IMembershipRepo membershipRepo,
-        IMemberRepository memberRepository,
-        IPlanRepository planRepository) : IMembershipService
+      IUnitOfWork unitOfWork) : IMembershipService
     {
-        private readonly IMembershipRepo _membershipRepo = membershipRepo;
-        private readonly IMemberRepository _memberRepo = memberRepository;
-        private readonly IPlanRepository _planRepo = planRepository;
+        private readonly IUnitOfWork _unitOfWork = unitOfWork;
 
         public async Task<IEnumerable<MembershipViewModel>> GetAllAsync(CancellationToken ct = default)
         {
-            var memberships = await _membershipRepo.GetAllAsync(
+            var memberships = await _unitOfWork.Memberships.GetAllAsync(
                 include: query => query.Include(m => m.Member)
                                        .Include(m => m.Plan),
                 cancellationToken: ct);
@@ -44,13 +41,13 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<Result> CreateAsync(CreateMembershipViewModel viewModel, CancellationToken ct = default)
         {
-            var member = await _memberRepo.GetByIdAsync(viewModel.MemberId, cancellationToken: ct);
+            var member = await _unitOfWork.Members.GetByIdAsync(viewModel.MemberId, cancellationToken: ct);
             if (member == null)
             {
                 return Result.Failure("Selected member does not exist.", nameof(CreateMembershipViewModel.MemberId));
             }
 
-            var plan = await _planRepo.GetByIdAsync(viewModel.PlanId, cancellationToken: ct);
+            var plan = await _unitOfWork.Plans.GetByIdAsync(viewModel.PlanId, cancellationToken: ct);
             if (plan == null)
             {
                 return Result.Failure("Selected plan does not exist.", nameof(CreateMembershipViewModel.PlanId));
@@ -61,7 +58,7 @@ namespace GymManagementSystem.BLL.Services
                 return Result.Failure("Selected plan is currently inactive.", nameof(CreateMembershipViewModel.PlanId));
             }
 
-            if (await _membershipRepo.HasActiveMembershipAsync(viewModel.MemberId, ct))
+            if (await _unitOfWork.Memberships.HasActiveMembershipAsync(viewModel.MemberId, ct))
             {
                 return Result.Failure("This member already has an active membership.", nameof(CreateMembershipViewModel.MemberId));
             }
@@ -74,8 +71,8 @@ namespace GymManagementSystem.BLL.Services
                 EndDate = viewModel.StartDate.AddDays(plan.DurationDays)
             };
 
-            await _membershipRepo.AddAsync(membership, ct);
-            var rowsAffected = await _membershipRepo.SaveChangesAsync(ct);
+            await _unitOfWork.Memberships.AddAsync(membership, ct);
+            var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
                 return Result.Failure("Failed to create membership.");
@@ -86,14 +83,14 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<Result> CancelAsync(int id, CancellationToken ct = default)
         {
-            var membership = await _membershipRepo.GetByIdAsync(id, cancellationToken: ct);
+            var membership = await _unitOfWork.Memberships.GetByIdAsync(id, cancellationToken: ct);
             if (membership == null)
             {
                 return Result.Failure("Membership not found.", nameof(id));
             }
 
-            await _membershipRepo.SoftDeleteAsync(membership, ct);
-            var rowsAffected = await _membershipRepo.SaveChangesAsync(ct);
+            await _unitOfWork.Memberships.SoftDeleteAsync(membership, ct);
+            var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
                 return Result.Failure("Failed to cancel membership.");
@@ -104,7 +101,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<IEnumerable<MembershipLookupViewModel>> GetMembersLookupAsync(CancellationToken ct = default)
         {
-            var members = await _memberRepo.GetAllAsync(cancellationToken: ct);
+            var members = await _unitOfWork.Members.GetAllAsync(cancellationToken: ct);
             return members.Select(m => new MembershipLookupViewModel
             {
                 Id = m.ID,
@@ -114,12 +111,15 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<IEnumerable<MembershipLookupViewModel>> GetPlansLookupAsync(CancellationToken ct = default)
         {
-            var plans = await _planRepo.GetAllAsync(cancellationToken: ct);
+            var plans = await _unitOfWork.Plans.GetAllAsync(cancellationToken: ct);
             return plans.Where(p => p.IsActive).Select(p => new MembershipLookupViewModel
             {
                 Id = p.ID,
                 Name = $"{p.Name} - {p.Price:N0} EGP ({p.DurationDays} Days)"
             });
         }
+
+
+     
     }
 }

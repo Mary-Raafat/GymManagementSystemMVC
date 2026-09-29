@@ -2,23 +2,24 @@ using GymManagementSystem.BLL.Common;
 using GymManagementSystem.BLL.ViewModels.Members;
 using GymManagementSystem.DAL.Interfaces;
 using GymManagementSystem.DAL.Models;
-using Microsoft.EntityFrameworkCore;
 using GymManagementSystem.DAL.Models.ValueOfObjects;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace GymManagementSystem.BLL.Services
 {
-    public class MemberService(IMemberRepository memberRepository) : IMemberService
+    public class MemberService(IUnitOfWork unitOfWork) : IMemberService
     {
+        private readonly IUnitOfWork _unitOfWork = unitOfWork;
 
         public async Task<IEnumerable<MemberViewModel>> GetAllAsync(CancellationToken ct = default)
         {
-            var members = await memberRepository.GetAllAsync(cancellationToken: ct);
-            var memberViewModels = members.Select(m => new MemberViewModel
+            var members = await _unitOfWork.Members.GetAllAsync(cancellationToken: ct);
+            return members.Select(m => new MemberViewModel
             {
                 Id = m.ID,
                 Name = m.Name,
@@ -28,20 +29,19 @@ namespace GymManagementSystem.BLL.Services
                 JoinDate = DateOnly.FromDateTime(m.JoinDate),
                 Gender = m.Gender.ToString()
             });
-
-            return memberViewModels;
         }
         public async Task<Result> CreateAsync(CreateMemberViewModel viewModel, CancellationToken ct = default)
         {
-            var email = viewModel.Email.Trim().ToLower();
-            var phone = viewModel.Phone.Trim().ToLower();
-            var name = viewModel.Name.Trim().ToLower();
-            if (await memberRepository.IsEmailTakenAsync(email, ct: ct))
+            var email = viewModel.Email.Trim().ToLowerInvariant();
+            var phone = viewModel.Phone.Trim();
+            var name = viewModel.Name.Trim();
+
+            if (await _unitOfWork.Members.IsEmailTakenAsync(email, ct: ct))
             {
                 return Result.Failure("Email already exists.", nameof(CreateMemberViewModel.Email));
             }
 
-            if (await memberRepository.IsPhoneTakenAsync(phone, ct: ct))
+            if (await _unitOfWork.Members.IsPhoneTakenAsync(phone, ct: ct))
             {
                 return Result.Failure("Phone number already exists.", nameof(CreateMemberViewModel.Phone));
             }
@@ -50,12 +50,13 @@ namespace GymManagementSystem.BLL.Services
                 Name = name,
                 Email = email,
                 Phone = phone,
+                DateOfBirth = viewModel.DateOfBirth,
                 JoinDate = DateTime.UtcNow,
                 Gender = viewModel.Gender,
-                Address = new DAL.Models.ValueOfObjects.Address
+                Address = new Address
                 {
-                    City = viewModel.City,
-                    Street = viewModel.Street,
+                    City = viewModel.City.Trim(),
+                    Street = viewModel.Street.Trim(),
                     BuildingNumber = viewModel.BuildingNumber,
                 },
 
@@ -64,10 +65,12 @@ namespace GymManagementSystem.BLL.Services
                     BloodType = viewModel.HealthRecordViewModel.BloodType,
                     Height = viewModel.HealthRecordViewModel.Height,
                     Weight = viewModel.HealthRecordViewModel.Weight,
+                    Notes = viewModel.HealthRecordViewModel.Note?.Trim()
                 }
             };
-            await memberRepository.AddAsync(member, ct);
-            var rowsAffected = await memberRepository.SaveChangesAsync(ct);
+
+            await _unitOfWork.Members.AddAsync(member, ct);
+            var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
                 return Result.Failure("Failed to add member.");
@@ -80,13 +83,13 @@ namespace GymManagementSystem.BLL.Services
         {
 
             //عشان يعرف يجيب ال plans 
-            var member = await memberRepository.GetByIdAsync(
+            var member = await _unitOfWork.Members.GetByIdAsync(
                 id: id,
                 include: query => query.Include(m => m.Memberships).ThenInclude(ms => ms.Plan),
+                trackChanges: false,
                 cancellationToken: cancellationToken);
 
-            if (member == null) return null!;
-
+            if (member == null) return null;
 
             var today = DateTime.Today;
             Membership? activeMembership = member.Memberships.FirstOrDefault(m => m.EndDate >= today);
@@ -98,9 +101,9 @@ namespace GymManagementSystem.BLL.Services
                 Email = member.Email,
                 Phone = member.Phone,
                 PhotoUrl = member.Photo,
-                Gender=member.Gender.ToString(),
-                DateOfBirth = member.DateOfBirth.ToShortDateString(),
-                Address = $"{member.Address.Street}, {member.Address.City}, {member.Address.BuildingNumber}",
+                Gender = member.Gender.ToString(),
+                DateOfBirth = member.DateOfBirth.ToString("yyyy-MM-dd"),
+                Address = $"{member.Address?.Street}, {member.Address?.City}, {member.Address?.BuildingNumber}",
                 PlanName = activeMembership?.Plan?.Name ?? "No Active Plan",
                 MemberShipStartDate = activeMembership?.StartDate.ToShortDateString() ?? "-",
                 MemberShipEndDate = activeMembership?.EndDate.ToShortDateString() ?? "-",
@@ -111,50 +114,45 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<HealthRecordDetailsViewModel?> GetHealthRecordDetailsAsync(int memberId, CancellationToken ct = default)
         {
-            var healthRecord = await memberRepository.GetByIdAsync(id: memberId, 
+            var member = await _unitOfWork.Members.GetByIdAsync(
+                id: memberId,
                 trackChanges: false,
                 includes: [m => m.HealthRecord],
                 cancellationToken: ct);
 
-
-
-
-            if (healthRecord == null) return null!;
-
+            if (member?.HealthRecord == null) return null;
 
             return new HealthRecordDetailsViewModel
             {
-                BloodType = healthRecord.HealthRecord.BloodType.ToString(),
-                Height = healthRecord.HealthRecord.Height,
-                Weight = healthRecord.HealthRecord.Weight,
-                Notes = healthRecord.HealthRecord.Notes
+                BloodType = member.HealthRecord.BloodType.ToString(),
+                Height = member.HealthRecord.Height,
+                Weight = member.HealthRecord.Weight,
+                Notes = member.HealthRecord.Notes ?? "-"
             };
         }
 
         public async Task<EditMemberViewModel?> GetForEditAsync(int id, CancellationToken ct = default)
         {
-            var member=  await memberRepository.GetByIdAsync(id:id , cancellationToken: ct);
-            if(member == null) return null!;
+            var member = await _unitOfWork.Members.GetByIdAsync(id: id, trackChanges: false, cancellationToken: ct);
+            if (member == null) return null;
 
             return new EditMemberViewModel
             {
-
                 Id = member.ID,
                 Name = member.Name,
+                PhotoUrl = member.Photo,
                 Email = member.Email,
                 Phone = member.Phone,
-                City = member.Address.City,
-                Street = member.Address.Street,
-                BuildingNumber = member.Address.BuildingNumber,
+                City = member.Address?.City ?? string.Empty,
+                Street = member.Address?.Street ?? string.Empty,
+                BuildingNumber = member.Address?.BuildingNumber ?? 0,
             };
         }
 
         public async Task<Result> UpdateAsync(EditMemberViewModel viewModel, CancellationToken cancellationToken)
         {
-            var member = await memberRepository.GetByIdAsync(viewModel.Id, cancellationToken: cancellationToken);
-            if(member == null) return Result.Failure("Member Not Found", nameof(viewModel.Id));
-
-
+            var member = await _unitOfWork.Members.GetByIdAsync(viewModel.Id, cancellationToken: cancellationToken);
+            if (member == null) return Result.Failure("Member Not Found", nameof(viewModel.Id));
 
             // يتأكد هل البيانات اتغيرت ولالا
             var normalizedEmail = viewModel.Email.Trim().ToLowerInvariant();
@@ -164,7 +162,8 @@ namespace GymManagementSystem.BLL.Services
 
             bool isEmailChanged = member.Email != normalizedEmail;
             bool isPhoneChanged = member.Phone != normalizedPhone;
-            bool isAddressChanged = member.Address.City != normalizedCity ||
+            bool isAddressChanged = member.Address == null ||
+                                   member.Address.City != normalizedCity ||
                                    member.Address.Street != normalizedStreet ||
                                    member.Address.BuildingNumber != viewModel.BuildingNumber;
 
@@ -173,14 +172,12 @@ namespace GymManagementSystem.BLL.Services
                 return Result.Failure("No changes were made.");
             }
 
-
-
-            if(isEmailChanged && await memberRepository.IsEmailTakenAsync(normalizedEmail, excludeId: viewModel.Id, ct: cancellationToken))
+            if (isEmailChanged && await _unitOfWork.Members.IsEmailTakenAsync(normalizedEmail, excludeId: viewModel.Id, ct: cancellationToken))
             {
                 return Result.Failure("Email already exists.", nameof(viewModel.Email));
             }
 
-            if(isPhoneChanged && await memberRepository.IsPhoneTakenAsync(normalizedPhone, excludeId: viewModel.Id, ct: cancellationToken))
+            if(isPhoneChanged && await _unitOfWork.Members.IsPhoneTakenAsync(normalizedPhone, excludeId: viewModel.Id, ct: cancellationToken))
             {
                 return Result.Failure("Phone number already exists.", nameof(viewModel.Phone));
             }
@@ -189,22 +186,24 @@ namespace GymManagementSystem.BLL.Services
             member.Phone = normalizedPhone;
             member.Address = new Address
             {
-                City = viewModel.City.Trim(),
-                Street = viewModel.Street.Trim(),
+                City = normalizedCity,
+                Street = normalizedStreet,
                 BuildingNumber = viewModel.BuildingNumber
             };
 
+            _unitOfWork.Members.Update(member);
+            var rowsAffected = await _unitOfWork.CompleteAsync(cancellationToken);
+            if (rowsAffected == 0)
+            {
+                return Result.Failure("Failed to update member.");
+            }
 
-            memberRepository.Update(member);
-            await memberRepository.SaveChangesAsync(cancellationToken);
             return Result.Success();
-
         }
 
         public async Task<Result> DeleteAsync(int id, CancellationToken cancellationToken)
         {
-
-            var member = await memberRepository.GetByIdAsync(
+            var member = await _unitOfWork.Members.GetByIdAsync(
                 id,
                 include: query => query.Include(m => m.HealthRecord)
                                        .Include(m => m.Bookings).ThenInclude(b => b.Session),
@@ -215,8 +214,8 @@ namespace GymManagementSystem.BLL.Services
                 return Result.Failure("Member not found.", nameof(id));
             }
 
-            bool HasActiveBookings = member.Bookings.Any(b => b.Session.EndDate >= DateTime.UtcNow);
-            if(HasActiveBookings)
+            bool hasActiveBookings = member.Bookings.Any(b => b.Session != null && b.Session.EndDate >= DateTime.UtcNow);
+            if (hasActiveBookings)
             {
                 return Result.Failure("Cannot delete member with active bookings.");
             }
@@ -227,10 +226,14 @@ namespace GymManagementSystem.BLL.Services
                 member.HealthRecord.DeletedAt = DateTime.UtcNow;
             }
 
-            await memberRepository.SoftDeleteAsync(member, cancellationToken);
-            await memberRepository.SaveChangesAsync(cancellationToken);
+            await _unitOfWork.Members.SoftDeleteAsync(member, cancellationToken);
+            var rowsAffected = await _unitOfWork.CompleteAsync(cancellationToken);
+            if (rowsAffected == 0)
+            {
+                return Result.Failure("Failed to delete member.");
+            }
+
             return Result.Success();
         }
     }
 }
-

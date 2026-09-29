@@ -29,6 +29,7 @@ namespace GymManagementSystem.DAL
             services.AddScoped<IBookingRepo, BookingRepo>();
 
             services.AddScoped(typeof(IGenericRepo<>), typeof(GenericRepo<>));
+            services.AddScoped<IUnitOfWork, UnitOfWork>();
             return services;
         }
     }

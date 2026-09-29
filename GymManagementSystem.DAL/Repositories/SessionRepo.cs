@@ -14,7 +14,8 @@ namespace GymManagementSystem.DAL.Repositories
     public class SessionRepo(GymContext context) : GenericRepo<Session>(context), ISessionRepo
     {
         private readonly GymContext _context = context;
-
+        //تتأكد من عدم وجود جلسة أخرى لنفس المدرب
+        //(s.TrainerId == trainerId) تتقاطع في الوقت مع الميعاد الجديد باستخدام الشرط:
         public Task<bool> HasTrainerConflictAsync(int trainerId, DateTime startDate, DateTime endDate, int? excludeSessionId = null, CancellationToken ct = default)
         {
             return _context.Sessions

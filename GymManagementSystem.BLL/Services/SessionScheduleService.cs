@@ -13,19 +13,13 @@ using System.Threading.Tasks;
 namespace GymManagementSystem.BLL.Services
 {
     public class SessionScheduleService(
-        ISessionRepo sessionRepo,
-        IBookingRepo bookingRepo,
-        IMemberRepository memberRepo,
-        IMembershipRepo membershipRepo) : ISessionScheduleService
+        IUnitOfWork unitOfWork) : ISessionScheduleService
     {
-        private readonly ISessionRepo _sessionRepo = sessionRepo;
-        private readonly IBookingRepo _bookingRepo = bookingRepo;
-        private readonly IMemberRepository _memberRepo = memberRepo;
-        private readonly IMembershipRepo _membershipRepo = membershipRepo;
-
+        private readonly IUnitOfWork _unitOfWork = unitOfWork;
+       
         public async Task<IEnumerable<SessionScheduleViewModel>> GetUpcomingScheduleAsync(CancellationToken ct = default)
         {
-            var sessions = await _sessionRepo.GetAllAsync(
+            var sessions = await _unitOfWork.Sessions.GetAllAsync(
                 include: query => query.Include(s => s.Category)
                                        .Include(s => s.Trainer)
                                        .Include(s => s.Bookings),
@@ -48,7 +42,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<BookSessionViewModel?> GetForBookingAsync(int sessionId, CancellationToken ct = default)
         {
-            var session = await _sessionRepo.GetByIdAsync(
+            var session = await _unitOfWork.Sessions.GetByIdAsync(
                 id: sessionId,
                 include: query => query.Include(s => s.Category)
                                        .Include(s => s.Trainer)
@@ -75,7 +69,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<Result> BookMemberAsync(BookSessionViewModel viewModel, CancellationToken ct = default)
         {
-            var session = await _sessionRepo.GetByIdAsync(
+            var session = await _unitOfWork.Sessions.GetByIdAsync(
                 id: viewModel.SessionId,
                 include: query => query.Include(s => s.Bookings),
                 cancellationToken: ct);
@@ -95,18 +89,18 @@ namespace GymManagementSystem.BLL.Services
                 return Result.Failure("This session has reached maximum capacity.");
             }
 
-            var member = await _memberRepo.GetByIdAsync(viewModel.MemberId, cancellationToken: ct);
+            var member = await _unitOfWork.Members.GetByIdAsync(viewModel.MemberId, cancellationToken: ct);
             if (member == null)
             {
                 return Result.Failure("Member not found.", nameof(viewModel.MemberId));
             }
 
-            if (await _bookingRepo.IsMemberBookedInSessionAsync(viewModel.MemberId, viewModel.SessionId, ct))
+            if (await _unitOfWork.Bookings.IsMemberBookedInSessionAsync(viewModel.MemberId, viewModel.SessionId, ct))
             {
                 return Result.Failure("Member is already booked in this session.", nameof(viewModel.MemberId));
             }
 
-            if (await _bookingRepo.HasMemberConflictBookingAsync(viewModel.MemberId, session.StartDate, session.EndDate, ct))
+            if (await _unitOfWork.Bookings .HasMemberConflictBookingAsync(viewModel.MemberId, session.StartDate, session.EndDate, ct))
             {
                 return Result.Failure("Member already has another booking during this time.", nameof(viewModel.MemberId));
             }
@@ -119,8 +113,8 @@ namespace GymManagementSystem.BLL.Services
                 IsAttended = false
             };
 
-            await _bookingRepo.AddAsync(booking, ct);
-            var rowsAffected = await _bookingRepo.SaveChangesAsync(ct);
+            await _unitOfWork.Bookings.AddAsync(booking, ct);
+            var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
                 return Result.Failure("Failed to complete booking.");
@@ -131,7 +125,7 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<SessionAttendanceViewModel?> GetSessionBookingsAsync(int sessionId, CancellationToken ct = default)
         {
-            var session = await _sessionRepo.GetByIdAsync(
+            var session = await _unitOfWork.Sessions.GetByIdAsync(
                 id: sessionId,
                 include: query => query.Include(s => s.Category)
                                        .Include(s => s.Trainer)
@@ -165,15 +159,15 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<Result> ToggleAttendanceAsync(int bookingId, CancellationToken ct = default)
         {
-            var booking = await _bookingRepo.GetByIdAsync(bookingId, cancellationToken: ct);
+            var booking = await _unitOfWork.Bookings.GetByIdAsync(bookingId, cancellationToken: ct);
             if (booking == null)
             {
                 return Result.Failure("Booking not found.", nameof(bookingId));
             }
 
             booking.IsAttended = !booking.IsAttended;
-            _bookingRepo.Update(booking);
-            var rowsAffected = await _bookingRepo.SaveChangesAsync(ct);
+            _unitOfWork.Bookings.Update(booking);
+            var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
                 return Result.Failure("Failed to update attendance.");
@@ -184,14 +178,14 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<Result> CancelBookingAsync(int bookingId, CancellationToken ct = default)
         {
-            var booking = await _bookingRepo.GetByIdAsync(bookingId, cancellationToken: ct);
+            var booking = await _unitOfWork.Bookings.GetByIdAsync(bookingId, cancellationToken: ct);
             if (booking == null)
             {
                 return Result.Failure("Booking not found.", nameof(bookingId));
             }
 
-            await _bookingRepo.SoftDeleteAsync(booking, ct);
-            var rowsAffected = await _bookingRepo.SaveChangesAsync(ct);
+            await _unitOfWork.Bookings.SoftDeleteAsync(booking, ct);
+            var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
                 return Result.Failure("Failed to cancel booking.");
@@ -202,8 +196,8 @@ namespace GymManagementSystem.BLL.Services
 
         public async Task<IEnumerable<MembershipLookupViewModel>> GetEligibleMembersLookupAsync(int sessionId, CancellationToken ct = default)
         {
-            var allMembers = await _memberRepo.GetAllAsync(cancellationToken: ct);
-            var session = await _sessionRepo.GetByIdAsync(
+            var allMembers = await _unitOfWork.Members.GetAllAsync(cancellationToken: ct);
+            var session = await _unitOfWork.Sessions.GetByIdAsync(
                 id: sessionId,
                 include: query => query.Include(s => s.Bookings),
                 cancellationToken: ct);
