@@ -1,9 +1,11 @@
 using GymManagementSystem.BLL.Common;
+using GymManagementSystem.BLL.Mapping;
 using GymManagementSystem.BLL.ViewModels.Membership;
 using GymManagementSystem.BLL.ViewModels.SessionSchedule;
 using GymManagementSystem.DAL.Interfaces;
 using GymManagementSystem.DAL.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -13,10 +15,12 @@ using System.Threading.Tasks;
 namespace GymManagementSystem.BLL.Services
 {
     public class SessionScheduleService(
-        IUnitOfWork unitOfWork) : ISessionScheduleService
+        IUnitOfWork unitOfWork,
+        ILogger<SessionScheduleService> logger) : ISessionScheduleService
     {
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
-       
+        private readonly ILogger<SessionScheduleService> _logger = logger;
+
         public async Task<IEnumerable<SessionScheduleViewModel>> GetUpcomingScheduleAsync(CancellationToken ct = default)
         {
             var sessions = await _unitOfWork.Sessions.GetAllAsync(
@@ -27,17 +31,7 @@ namespace GymManagementSystem.BLL.Services
 
             return sessions
                 .OrderBy(s => s.StartDate)
-                .Select(s => new SessionScheduleViewModel
-                {
-                    SessionId = s.ID,
-                    Description = s.Description,
-                    CategoryName = s.Category?.Name ?? "N/A",
-                    TrainerName = s.Trainer?.Name ?? "N/A",
-                    StartDate = s.StartDate,
-                    EndDate = s.EndDate,
-                    Capacity = s.Capacity,
-                    BookedCount = s.Bookings?.Count ?? 0
-                });
+                .Select(s => s.ToScheduleViewModel());
         }
 
         public async Task<BookSessionViewModel?> GetForBookingAsync(int sessionId, CancellationToken ct = default)
@@ -51,20 +45,11 @@ namespace GymManagementSystem.BLL.Services
 
             if (session == null)
             {
+                _logger.LogWarning("Session ID {SessionId} not found for booking.", sessionId);
                 return null;
             }
 
-            var bookedCount = session.Bookings?.Count ?? 0;
-
-            return new BookSessionViewModel
-            {
-                SessionId = session.ID,
-                CategoryName = session.Category?.Name ?? "N/A",
-                TrainerName = session.Trainer?.Name ?? "N/A",
-                DateDisplay = session.StartDate.ToString("dd MMM yyyy"),
-                TimeRangeDisplay = $"{session.StartDate:hh:mm tt} - {session.EndDate:hh:mm tt}",
-                AvailableSlots = Math.Max(0, session.Capacity - bookedCount)
-            };
+            return session.ToBookViewModel();
         }
 
         public async Task<Result> BookMemberAsync(BookSessionViewModel viewModel, CancellationToken ct = default)
@@ -76,50 +61,52 @@ namespace GymManagementSystem.BLL.Services
 
             if (session == null)
             {
+                _logger.LogWarning("Booking failed: Session ID {SessionId} not found.", viewModel.SessionId);
                 return Result.Failure("Session not found.", nameof(viewModel.SessionId));
             }
 
             if (session.EndDate <= DateTime.UtcNow)
             {
+                _logger.LogWarning("Booking failed: Session ID {SessionId} has already ended.", viewModel.SessionId);
                 return Result.Failure("Cannot book into a completed session.");
             }
 
             if (session.Bookings.Count >= session.Capacity)
             {
+                _logger.LogWarning("Booking failed: Session ID {SessionId} has reached maximum capacity of {Capacity}.", viewModel.SessionId, session.Capacity);
                 return Result.Failure("This session has reached maximum capacity.");
             }
 
             var member = await _unitOfWork.Members.GetByIdAsync(viewModel.MemberId, cancellationToken: ct);
             if (member == null)
             {
+                _logger.LogWarning("Booking failed: Member ID {MemberId} not found.", viewModel.MemberId);
                 return Result.Failure("Member not found.", nameof(viewModel.MemberId));
             }
 
             if (await _unitOfWork.Bookings.IsMemberBookedInSessionAsync(viewModel.MemberId, viewModel.SessionId, ct))
             {
+                _logger.LogWarning("Booking failed: Member ID {MemberId} is already booked in session ID {SessionId}.", viewModel.MemberId, viewModel.SessionId);
                 return Result.Failure("Member is already booked in this session.", nameof(viewModel.MemberId));
             }
 
             if (await _unitOfWork.Bookings .HasMemberConflictBookingAsync(viewModel.MemberId, session.StartDate, session.EndDate, ct))
             {
+                _logger.LogWarning("Booking failed: Member ID {MemberId} has a schedule conflict between {StartDate} and {EndDate}.", viewModel.MemberId, session.StartDate, session.EndDate);
                 return Result.Failure("Member already has another booking during this time.", nameof(viewModel.MemberId));
             }
 
-            var booking = new Booking
-            {
-                SessionId = viewModel.SessionId,
-                MemberId = viewModel.MemberId,
-                Date = DateTime.UtcNow,
-                IsAttended = false
-            };
+            var booking = viewModel.ToBookingEntity();
 
             await _unitOfWork.Bookings.AddAsync(booking, ct);
             var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
+                _logger.LogError("Failed to persist booking for member ID {MemberId} in session ID {SessionId}.", viewModel.MemberId, viewModel.SessionId);
                 return Result.Failure("Failed to complete booking.");
             }
 
+            _logger.LogInformation("Member ID {MemberId} successfully booked into session ID {SessionId}.", viewModel.MemberId, viewModel.SessionId);
             return Result.Success();
         }
 
@@ -134,27 +121,11 @@ namespace GymManagementSystem.BLL.Services
 
             if (session == null)
             {
+                _logger.LogWarning("Session ID {SessionId} not found for attendance retrieval.", sessionId);
                 return null;
             }
 
-            return new SessionAttendanceViewModel
-            {
-                SessionId = session.ID,
-                CategoryName = session.Category?.Name ?? "N/A",
-                TrainerName = session.Trainer?.Name ?? "N/A",
-                DateDisplay = session.StartDate.ToString("dd MMM yyyy"),
-                TimeRangeDisplay = $"{session.StartDate:hh:mm tt} - {session.EndDate:hh:mm tt}",
-                Capacity = session.Capacity,
-                Bookings = session.Bookings.Select(b => new BookingItemViewModel
-                {
-                    BookingId = b.ID,
-                    MemberId = b.MemberId,
-                    MemberName = b.Member?.Name ?? "N/A",
-                    MemberPhone = b.Member?.Phone ?? "N/A",
-                    BookingDate = b.Date,
-                    IsAttended = b.IsAttended
-                }).ToList()
-            };
+            return session.ToAttendanceViewModel();
         }
 
         public async Task<Result> ToggleAttendanceAsync(int bookingId, CancellationToken ct = default)
@@ -162,6 +133,7 @@ namespace GymManagementSystem.BLL.Services
             var booking = await _unitOfWork.Bookings.GetByIdAsync(bookingId, cancellationToken: ct);
             if (booking == null)
             {
+                _logger.LogWarning("Attendance toggle failed: Booking ID {BookingId} not found.", bookingId);
                 return Result.Failure("Booking not found.", nameof(bookingId));
             }
 
@@ -170,9 +142,11 @@ namespace GymManagementSystem.BLL.Services
             var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
+                _logger.LogError("Failed to update attendance status for booking ID: {BookingId}", bookingId);
                 return Result.Failure("Failed to update attendance.");
             }
 
+            _logger.LogInformation("Attendance status for booking ID: {BookingId} toggled to {IsAttended}.", bookingId, booking.IsAttended);
             return Result.Success();
         }
 
@@ -181,6 +155,7 @@ namespace GymManagementSystem.BLL.Services
             var booking = await _unitOfWork.Bookings.GetByIdAsync(bookingId, cancellationToken: ct);
             if (booking == null)
             {
+                _logger.LogWarning("Booking cancellation failed: Booking ID {BookingId} not found.", bookingId);
                 return Result.Failure("Booking not found.", nameof(bookingId));
             }
 
@@ -188,9 +163,11 @@ namespace GymManagementSystem.BLL.Services
             var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
+                _logger.LogError("Failed to cancel booking ID: {BookingId} in the database.", bookingId);
                 return Result.Failure("Failed to cancel booking.");
             }
 
+            _logger.LogInformation("Booking ID: {BookingId} cancelled successfully.", bookingId);
             return Result.Success();
         }
 
@@ -206,11 +183,7 @@ namespace GymManagementSystem.BLL.Services
 
             return allMembers
                 .Where(m => !bookedMemberIds.Contains(m.ID))
-                .Select(m => new MembershipLookupViewModel
-                {
-                    Id = m.ID,
-                    Name = $"{m.Name} ({m.Phone})"
-                });
+                .Select(m => m.ToEligibleMemberLookup());
         }
     }
 }

@@ -6,9 +6,21 @@ using Microsoft.EntityFrameworkCore;
 using GymManagementSystem.Dbcontexts;
 using GymManagementSystem.DAL;
 using GymManagementSystem.BLL.Services;
+using Serilog;
+
+
 
 
 var builder = WebApplication.CreateBuilder(args);
+
+// Configure Serilog
+builder.Host.UseSerilog((context, configuration) =>
+{
+    configuration
+        .MinimumLevel.Information()
+        .WriteTo.Console()
+        .WriteTo.File("logs/log-.txt", rollingInterval: RollingInterval.Day);
+});
 
 builder.Services.AddGymManagementSystemDAL(builder.Configuration.GetConnectionString("DefaultConnection")!);
 builder.Services.AddGymManagementSystemBLL();
@@ -28,6 +40,8 @@ else
     app.UseExceptionHandler("/Home/Error");
 }
 
+app.UseSerilogRequestLogging();
+
 app.UseStaticFiles();
 
 app.UseRouting();
@@ -38,13 +52,11 @@ app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}"); //Default
 
-
-
 using (var scope = app.Services.CreateScope())
 {
     var context = scope.ServiceProvider.GetRequiredService<GymContext>();
     await context.Database.MigrateAsync();// Apply any pending migrations
     await DataSeeder.SeedDataAsync(context);
-
 }
+
 app.Run();

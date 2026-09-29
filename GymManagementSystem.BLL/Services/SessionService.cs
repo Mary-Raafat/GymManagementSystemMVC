@@ -1,8 +1,10 @@
 using GymManagementSystem.BLL.Common;
+using GymManagementSystem.BLL.Mapping;
 using GymManagementSystem.BLL.ViewModels.Session;
 using GymManagementSystem.DAL.Interfaces;
 using GymManagementSystem.DAL.Models;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,10 +13,11 @@ using System.Threading.Tasks;
 
 namespace GymManagementSystem.BLL.Services
 {
-    public class SessionService(
-        IUnitOfWork unitOfWork) : ISessionService
+    public class SessionService(IUnitOfWork unitOfWork, ILogger<SessionService>
+        logger) : ISessionService
     {
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
+        private readonly ILogger<SessionService> _logger = logger;
 
         public async Task<IEnumerable<SessionViewModel>> GetAllAsync(CancellationToken ct = default)
         {
@@ -24,73 +27,60 @@ namespace GymManagementSystem.BLL.Services
                                        .Include(s => s.Bookings),
                 cancellationToken: ct);
 
-            return sessions.Select(s => new SessionViewModel
-            {
-                Id = s.ID,
-                Description = s.Description,
-                Capacity = s.Capacity,
-                StartDate = s.StartDate,
-                EndDate = s.EndDate,
-                TrainerId = s.TrainerId,
-                TrainerName = s.Trainer != null ? s.Trainer.Name : "N/A",
-                CategoryId = s.CategoryId,
-                CategoryName = s.Category != null ? s.Category.Name : "N/A",
-                BookedSlots = s.Bookings?.Count ?? 0
-            });
+            return sessions.Select(s => s.ToViewModel());
         }
 
         public async Task<Result> CreateAsync(CreateSessionViewModel viewModel, CancellationToken ct = default)
         {
             if (viewModel.EndDate <= viewModel.StartDate)
             {
+                _logger.LogWarning("Session creation failed: End date ({EndDate}) must be after start date ({StartDate}).", viewModel.EndDate, viewModel.StartDate);
                 return Result.Failure("End date must be after start date.", nameof(CreateSessionViewModel.EndDate));
             }
 
             if (viewModel.StartDate < DateTime.Now.AddMinutes(-5))
             {
+                _logger.LogWarning("Session creation failed: Start date ({StartDate}) cannot be in the past.", viewModel.StartDate);
                 return Result.Failure("Start date cannot be in the past.", nameof(CreateSessionViewModel.StartDate));
             }
 
             var trainerExists = await _unitOfWork.Trainers.ExistAsync(t => t.ID == viewModel.TrainerId, ct);
             if (!trainerExists)
             {
+                _logger.LogWarning("Session creation failed: Selected Trainer ID {TrainerId} does not exist.", viewModel.TrainerId);
                 return Result.Failure("Selected trainer does not exist.", nameof(CreateSessionViewModel.TrainerId));
             }
 
             var categoryExists = await _unitOfWork.Categories.ExistAsync(c => c.ID == viewModel.CategoryId, ct);
             if (!categoryExists)
             {
+                _logger.LogWarning("Session creation failed: Selected Category ID {CategoryId} does not exist.", viewModel.CategoryId);
                 return Result.Failure("Selected category does not exist.", nameof(CreateSessionViewModel.CategoryId));
             }
 
             if (await _unitOfWork.Sessions.HasTrainerConflictAsync(viewModel.TrainerId, viewModel.StartDate, viewModel.EndDate, ct: ct))
             {
+                _logger.LogWarning("Session creation failed: Trainer ID {TrainerId} has a schedule conflict between {StartDate} and {EndDate}.", viewModel.TrainerId, viewModel.StartDate, viewModel.EndDate);
                 return Result.Failure("Trainer already has another session scheduled during this time period.", nameof(CreateSessionViewModel.TrainerId));
             }
 
-            var session = new Session
-            {
-                Description = viewModel.Description.Trim(),
-                Capacity = viewModel.Capacity,
-                StartDate = viewModel.StartDate,
-                EndDate = viewModel.EndDate,
-                TrainerId = viewModel.TrainerId,
-                CategoryId = viewModel.CategoryId
-            };
+            var session = viewModel.ToEntity();
 
             await _unitOfWork.Sessions.AddAsync(session, ct);
             var rowsAffected = await _unitOfWork.CompleteAsync(ct);
             if (rowsAffected == 0)
             {
+                _logger.LogError("Failed to persist session in the database.");
                 return Result.Failure("Failed to add session.");
             }
 
+            _logger.LogInformation("Session created successfully with ID: {SessionId}.", session.ID);
             return Result.Success();
         }
 
         public async Task<SessionDetailsViewModel?> GetDetailsAsync(int id, CancellationToken ct = default)
         {
-            var session = await _unitOfWork.Sessions.GetByIdAsync(
+            var session = await _unitOfWork.Sessions.GetByIdAsync( 
                 id: id,
                 include: query => query.Include(s => s.Trainer)
                                        .Include(s => s.Category)
@@ -99,30 +89,11 @@ namespace GymManagementSystem.BLL.Services
 
             if (session == null)
             {
+                _logger.LogWarning("Session with ID {SessionId} not found.", id);
                 return null;
             }
 
-            var bookedCount = session.Bookings?.Count ?? 0;
-            var status = DateTime.UtcNow < session.StartDate
-                ? "Upcoming"
-                : (DateTime.UtcNow <= session.EndDate ? "Ongoing" : "Completed");
-
-            return new SessionDetailsViewModel
-            {
-                Id = session.ID,
-                Description = session.Description,
-                Capacity = session.Capacity,
-                StartDate = session.StartDate.ToString("yyyy-MM-dd HH:mm"),
-                EndDate = session.EndDate.ToString("yyyy-MM-dd HH:mm"),
-                TrainerId = session.TrainerId,
-                TrainerName = session.Trainer != null ? session.Trainer.Name : "N/A",
-                CategoryId = session.CategoryId,
-                CategoryName = session.Category != null ? session.Category.Name : "N/A",
-                BookedSlots = bookedCount,
-                AvailableSlots = Math.Max(0, session.Capacity - bookedCount),
-                Status = status,
-                CreatedAt = session.CreatedAt.ToString("yyyy-MM-dd HH:mm")
-            };
+            return session.ToDetailsViewModel();
         }
 
         public async Task<EditSessionViewModel?> GetForEditAsync(int id, CancellationToken ct = default)
@@ -130,19 +101,11 @@ namespace GymManagementSystem.BLL.Services
             var session = await _unitOfWork.Sessions.GetByIdAsync(id: id, cancellationToken: ct);
             if (session == null)
             {
+                _logger.LogWarning("Session with ID {SessionId} not found for editing.", id);
                 return null;
             }
 
-            return new EditSessionViewModel
-            {
-                Id = session.ID,
-                Description = session.Description,
-                Capacity = session.Capacity,
-                StartDate = session.StartDate,
-                EndDate = session.EndDate,
-                TrainerId = session.TrainerId,
-                CategoryId = session.CategoryId
-            };
+            return session.ToEditViewModel();
         }
 
         public async Task<Result> UpdateAsync(EditSessionViewModel viewModel, CancellationToken cancellationToken = default)
@@ -150,11 +113,13 @@ namespace GymManagementSystem.BLL.Services
             var session = await _unitOfWork.Sessions.GetByIdAsync(id: viewModel.Id, cancellationToken: cancellationToken);
             if (session == null)
             {
+                _logger.LogWarning("Session update failed: Session ID {SessionId} not found.", viewModel.Id);
                 return Result.Failure("Session not found.", nameof(viewModel.Id));
             }
 
             if (viewModel.EndDate <= viewModel.StartDate)
             {
+                _logger.LogWarning("Session update failed: End date ({EndDate}) must be after start date ({StartDate}).", viewModel.EndDate, viewModel.StartDate);
                 return Result.Failure("End date must be after start date.", nameof(EditSessionViewModel.EndDate));
             }
 
@@ -168,6 +133,7 @@ namespace GymManagementSystem.BLL.Services
 
             if (!isDescriptionChanged && !isCapacityChanged && !isStartDateChanged && !isEndDateChanged && !isTrainerChanged && !isCategoryChanged)
             {
+                _logger.LogInformation("No changes detected for session ID: {SessionId}", viewModel.Id);
                 return Result.Failure("No changes were made.");
             }
 
@@ -176,6 +142,7 @@ namespace GymManagementSystem.BLL.Services
                 var trainerExists = await _unitOfWork.Trainers.ExistAsync(t => t.ID == viewModel.TrainerId, cancellationToken);
                 if (!trainerExists)
                 {
+                    _logger.LogWarning("Session update failed: Trainer ID {TrainerId} does not exist.", viewModel.TrainerId);
                     return Result.Failure("Selected trainer does not exist.", nameof(EditSessionViewModel.TrainerId));
                 }
             }
@@ -185,6 +152,7 @@ namespace GymManagementSystem.BLL.Services
                 var categoryExists = await _unitOfWork.Categories.ExistAsync(c => c.ID == viewModel.CategoryId, cancellationToken);
                 if (!categoryExists)
                 {
+                    _logger.LogWarning("Session update failed: Category ID {CategoryId} does not exist.", viewModel.CategoryId);
                     return Result.Failure("Selected category does not exist.", nameof(EditSessionViewModel.CategoryId));
                 }
             }
@@ -193,6 +161,7 @@ namespace GymManagementSystem.BLL.Services
             {
                 if (await _unitOfWork.Sessions.HasTrainerConflictAsync(viewModel.TrainerId, viewModel.StartDate, viewModel.EndDate, excludeSessionId: viewModel.Id, ct: cancellationToken))
                 {
+                    _logger.LogWarning("Session update failed: Trainer ID {TrainerId} has a schedule conflict between {StartDate} and {EndDate}.", viewModel.TrainerId, viewModel.StartDate, viewModel.EndDate);
                     return Result.Failure("Trainer already has another session scheduled during this time period.", nameof(EditSessionViewModel.TrainerId));
                 }
             }
@@ -205,7 +174,14 @@ namespace GymManagementSystem.BLL.Services
             session.CategoryId = viewModel.CategoryId;
 
             _unitOfWork.Sessions.Update(session);
-            await _unitOfWork.CompleteAsync(cancellationToken);
+            var rowsAffected = await _unitOfWork.CompleteAsync(cancellationToken);
+            if (rowsAffected == 0)
+            {
+                _logger.LogError("Failed to persist updates for session ID: {SessionId}", viewModel.Id);
+                return Result.Failure("Failed to update session.");
+            }
+
+            _logger.LogInformation("Session ID: {SessionId} updated successfully.", viewModel.Id);
             return Result.Success();
         }
 
@@ -218,17 +194,26 @@ namespace GymManagementSystem.BLL.Services
 
             if (session == null)
             {
+                _logger.LogWarning("Session deletion failed: Session ID {SessionId} not found.", id);
                 return Result.Failure("Session not found.", nameof(id));
             }
 
             bool hasActiveBookings = session.EndDate >= DateTime.UtcNow && session.Bookings.Any();
             if (hasActiveBookings)
             {
+                _logger.LogWarning("Session deletion rejected: Session ID {SessionId} has active bookings.", id);
                 return Result.Failure("Cannot delete a session that has active bookings.");
             }
 
             await _unitOfWork.Sessions.SoftDeleteAsync(session, cancellationToken);
-            await _unitOfWork.CompleteAsync(cancellationToken);
+            var rowsAffected = await _unitOfWork.CompleteAsync(cancellationToken);
+            if (rowsAffected == 0)
+            {
+                _logger.LogError("Failed to soft delete session ID: {SessionId}", id);
+                return Result.Failure("Failed to delete session.");
+            }
+
+            _logger.LogInformation("Session ID: {SessionId} soft-deleted successfully.", id);
             return Result.Success();
         }
 
