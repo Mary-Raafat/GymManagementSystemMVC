@@ -18,5 +18,7 @@ namespace GymManagementSystem.BLL.Services
         Task<Result> DeleteAsync(int id, CancellationToken cancellationToken = default);
         Task<IEnumerable<SessionLookupViewModel>> GetTrainersLookupAsync(CancellationToken ct = default);
         Task<IEnumerable<SessionLookupViewModel>> GetCategoriesLookupAsync(CancellationToken ct = default);
+
+        Task<IEnumerable<SessionLookupViewModel>>GetTrainersByCategory(int categoryid, CancellationToken ct = default);  
     }
 }

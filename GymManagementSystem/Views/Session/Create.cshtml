@@ -75,16 +75,6 @@
 
                         <div class="row g-3 mb-4">
                             <div class="col-md-6">
-                                <label asp-for="TrainerId" class="form-label fw-semibold">
-                                    Trainer <span class="text-danger">*</span>
-                                </label>
-                                <select asp-for="TrainerId" asp-items="ViewBag.Trainers" class="form-select">
-                                    <option value="">-- Select Trainer --</option>
-                                </select>
-                                <span asp-validation-for="TrainerId" class="text-danger"></span>
-                            </div>
-
-                            <div class="col-md-6">
                                 <label asp-for="CategoryId" class="form-label fw-semibold">
                                     Category <span class="text-danger">*</span>
                                 </label>
@@ -92,6 +82,16 @@
                                     <option value="">-- Select Category --</option>
                                 </select>
                                 <span asp-validation-for="CategoryId" class="text-danger"></span>
+                            </div>
+
+                            <div class="col-md-6">
+                                <label asp-for="TrainerId" class="form-label fw-semibold">
+                                    Trainer <span class="text-danger">*</span>
+                                </label>
+                                <select asp-for="TrainerId" class="form-select" disabled>
+                                    <option value="">-- Select Category First --</option>
+                                </select>
+                                <span asp-validation-for="TrainerId" class="text-danger"></span>
                             </div>
                         </div>
 
@@ -113,4 +113,5 @@
 @section Scripts {
     <partial name="_ValidationScriptsPartial" />
     <partial name="_AlertDismissScript" />
+    <partial name="_SessionScriptsPartial" />
 }

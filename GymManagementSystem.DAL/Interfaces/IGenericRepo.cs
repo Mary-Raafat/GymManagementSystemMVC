@@ -27,6 +27,7 @@ namespace GymManagementSystem.DAL.Interfaces
         // بتاخد array of expressions of navigation properties -- مش بتفرق معاه النوع 
         Task<IReadOnlyList<TEntity>> GetAllAsync(
             Expression<Func<TEntity, object>>[] includes,
+            Expression<Func<TEntity, bool>> predicate,
             bool trackChanges = false,
             CancellationToken cancellationToken = default);
 

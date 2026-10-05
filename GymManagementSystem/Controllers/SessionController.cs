@@ -127,6 +127,15 @@ namespace GymManagementSystem.PL.Controllers
             return RedirectToAction(nameof(Index));
         }
 
+
+        [HttpGet]
+        public async Task<IActionResult> GetTrainersByCategory(int categoryId)
+        {
+            var trainers = await sessionService.GetTrainersByCategory(categoryId);
+            return Json(trainers);
+        }
+
+
         private async Task PopulateDropdownsAsync()
         {
             var trainers = await sessionService.GetTrainersLookupAsync();

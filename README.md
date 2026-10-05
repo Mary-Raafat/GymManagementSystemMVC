@@ -1,10 +1,5 @@
 # 🏋️‍♂️ Gym Management System (MVC)
 
-> 📌 **Course Notes & Study Material**:  
-> 🔗 **[Notion Notes & Reference Guide 📝](https://www.notion.so/Functions-in-Generic-repository-and-its-overloads-3d056d47682e803c9134ee564d37371f?source=copy_link)**
-
----
-
 [![.NET Core](https://img.shields.io/badge/.NET-8.0-512BD4?style=for-the-badge&logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Entity Framework Core](https://img.shields.io/badge/EF%20Core-8.0.26-6DB33F?style=for-the-badge&logo=dotnet&logoColor=white)](https://learn.microsoft.com/en-us/ef/core/)
 [![SQL Server](https://img.shields.io/badge/Database-SQL%20Server-CC292B?style=for-the-badge&logo=microsoftsqlserver&logoColor=white)](https://www.microsoft.com/sql-server)
@@ -22,47 +17,53 @@
 - [Tech Stack](#-tech-stack)
 - [Getting Started](#-getting-started)
 - [Project Structure](#-project-structure)
-- [Notes & References](#-notes--references)
 
 ---
 
 ## 📋 Overview
 
-**Gym Management System** is an enterprise-grade ASP.NET Core MVC application built with **.NET 8.0** and **Entity Framework Core**. It is designed to efficiently manage gym operations, including member subscriptions, trainer schedules, workout sessions, membership plans, health tracking records, and bookings.
+**Gym Management System** is an enterprise-grade ASP.NET Core MVC application built with **.NET 8.0** and **Entity Framework Core**. It is designed to efficiently manage full-scale gym operations, including member subscriptions, trainer schedules, workout session bookings, membership plans, health tracking records, and automated business rule validations.
 
 ---
 
 ## ✨ Key Features
 
-- 🏗️ **Clean N-Tier Architecture**: Strict separation of concerns between Data Access (`DAL`), Business Logic (`BLL`), and Presentation (`PL`) layers.
-- 🔄 **Generic & Custom Repository Pattern**: Reusable data access logic with type-safe generic repositories and domain-specific operations.
-- 🛡️ **EF Core Interceptors (Soft Delete & Automatic Auditing)**: Custom `AuditColumnsInterceptor` automatically tracks `CreatedAt`, `UpdatedAt`, and performs soft deletion (`IsDeleted`, `DeletedAt`).
-- 🌱 **Automated Database Seeding & Migrations**: Automatic execution of EF Core migrations and sample data seeding on application startup.
-- 👥 **Comprehensive Member Management**: Complete workflow for managing members, membership plans, trainers, and health metrics.
-- 📅 **Session & Booking Tracking**: System to organize training sessions, manage schedules, and process bookings.
-- 🧩 **Clean Dependency Injection**: Modular service registration extensions (`AddGymManagementSystemDAL` and `AddGymManagementSystemBLL`).
+- 🏗️ **Clean N-Tier Architecture**: Strict separation of concerns between Data Access Layer (`DAL`), Business Logic Layer (`BLL`), and Presentation Layer (`PL`).
+- 🔄 **Unit of Work & Repository Pattern**: Centralized transaction management with type-safe generic repositories and domain-specific repositories.
+- ⚡ **Dynamic Cascading Dropdowns**: Real-time AJAX/Fetch-driven dropdowns (e.g., dynamically loading qualified trainers based on the selected session category).
+- 🛡️ **Two-Layer Validation**: Business logic and schedule conflict validations applied on both client-side and server-side (Result Pattern).
+- 🕒 **EF Core Interceptors (Soft Delete & Auditing)**: Custom `AuditColumnsInterceptor` automatically tracks `CreatedAt`, `UpdatedAt`, and performs soft deletion (`IsDeleted`, `DeletedAt`).
+- 👥 **Comprehensive Member & Trainer Management**: Full CRUD operations, health record logging, and specialization tracking.
+- 💳 **Membership & Subscription Lifecycle**: Plan assignment, active membership validation, and expiration management.
+- 📅 **Session Scheduling & Bookings**: Capacity enforcement, trainer conflict detection, and eligible member attendance tracking.
+- 🌱 **Automated Database Seeding & Migrations**: Automated execution of EF Core migrations and initial lookup seeding on application startup.
 
 ---
 
 ## 🏛️ Architecture & Design Patterns
 
-The project follows the **3-Tier / Layered Architecture** to maintain clean code separation, scalability, and maintainability:
+The project follows the **3-Tier / Layered Architecture** to maintain clean code separation, scalability, and testability:
 
 ```mermaid
 graph TD
     subgraph Presentation Layer [GymManagementSystem.PL]
         PL_Controllers[Controllers & Razor Views]
+        PL_Partials[Shared Scripts & Partial Views]
     end
 
     subgraph Business Logic Layer [GymManagementSystem.BLL]
-        BLL_Services[Services & DTOs / ViewModels]
+        BLL_Services[Application Services]
+        BLL_ViewModels[ViewModels & DTOs]
+        BLL_Mapping[Mapping Extensions]
+        BLL_Common[Result Pattern & Enums]
     end
 
     subgraph Data Access Layer [GymManagementSystem.DAL]
-        DAL_Repos[Repositories & Interfaces]
-        DAL_Interceptors[Audit & Soft-Delete Interceptor]
+        DAL_UOW[Unit of Work]
+        DAL_Repos[Generic & Specific Repositories]
+        DAL_Interceptors[Audit & Soft-Delete Interceptors]
         DAL_Context[GymContext & EF Core Migrations]
-        DAL_Models[Domain Entities & Enums]
+        DAL_Models[Domain Entities & Configurations]
     end
 
     subgraph Database
@@ -70,17 +71,19 @@ graph TD
     end
 
     PL_Controllers --> BLL_Services
-    BLL_Services --> DAL_Repos
+    BLL_Services --> DAL_UOW
+    DAL_UOW --> DAL_Repos
     DAL_Repos --> DAL_Context
     DAL_Context --> DAL_Interceptors
     DAL_Context --> DB
-    DAL_Repos --> DAL_Models
 ```
 
-### Advanced Patterns Implemented:
-1. **Repository Pattern**: `IGenericRepo<T>` and concrete `GenericRepo<T>`, alongside `IMemberRepository` and `IPlanRepository`.
-2. **EF Core Interceptor**: `AuditColumnsInterceptor` hooks into EF Core's `SavingChanges` and `SavingChangesAsync` pipeline to manage entity state lifecycle automatically.
-3. **Seeder Pattern**: `DataSeeder.SeedDataAsync()` ensures the database has initial data available upon boot.
+### Advanced Patterns & Concepts Implemented:
+1. **Repository & Unit of Work Pattern**: Decouples business logic from EF Core DbContext and coordinates multi-repository transactions.
+2. **Result Pattern**: Eliminates unhandled exceptions for business flow control by returning structured `Result` objects with explicit error messages and property names.
+3. **EF Core Interceptors**: `AuditColumnsInterceptor` automatically manages audit timestamps and soft deletion on entity persistence.
+4. **ViewModel Mapping Extensions**: High-performance manual mapping between Domain Entities and ViewModels.
+5. **Partial Views & Modular Scripts**: Modularized front-end scripts (e.g., `_SessionScriptsPartial.cshtml`, `_ValidationScriptsPartial.cshtml`).
 
 ---
 
@@ -88,27 +91,26 @@ graph TD
 
 | Entity | Description |
 | :--- | :--- |
-| **`Member`** | Stores gym members' profiles, contact info, and health status. |
-| **`Trainer`** | Manages trainers' info, specializations, and availability. |
-| **`Plan`** | Defines membership packages, pricing, duration, and access tiers. |
-| **`Membership`** | Links members to their chosen plan with activation and expiration dates. |
-| **`Session`** | Represents training sessions scheduled by trainers. |
-| **`Booking`** | Handles session reservations made by members. |
-| **`HealthRecord`** | Tracks members' fitness metrics, height, weight, and health history. |
-| **`Category`** | Organizes training types and session categories. |
-| **`BaseEntity`** | Base entity class providing `Id`, `CreatedAt`, `UpdatedAt`, `IsDeleted`, `DeletedAt`. |
+| **`Member`** | Stores member personal info, contact details, and related health records. |
+| **`Trainer`** | Stores trainer profiles, hire dates, and specializations (`Speciality`). |
+| **`Plan`** | Defines membership packages, duration, pricing, and active status. |
+| **`Membership`** | Links members to plans with start date, end date, and validity tracking. |
+| **`Session`** | Training sessions scheduled by trainers with capacity limits and category association. |
+| **`Category`** | Organizes session types (e.g., Strength, Cardio, Yoga, CrossFit, Bodybuilding). |
+| **`Booking`** | Records member attendance and reservations for sessions. |
+| **`HealthRecord`** | Tracks member fitness metrics (height, weight, medical conditions, goals). |
+| **`BaseEntity`** | Base class providing `ID`, `CreatedAt`, `UpdatedAt`, `IsDeleted`, and `DeletedAt`. |
 
 ---
 
 ## 💻 Tech Stack
 
 - **Framework**: [.NET 8.0](https://dotnet.microsoft.com/) (C# 12)
-- **Web App**: ASP.NET Core MVC (Razor Engine, Bootstrap)
-- **ORM**: Entity Framework Core 8.0.26
+- **Web App**: ASP.NET Core MVC (Razor Views, Bootstrap 5, Bootstrap Icons)
+- **ORM**: Entity Framework Core 8.0
 - **Database**: Microsoft SQL Server
-- **Tools & Libraries**:
-  - `Microsoft.EntityFrameworkCore.SqlServer`
-  - `Microsoft.EntityFrameworkCore.Tools`
+- **Client Scripting**: Vanilla JavaScript (Async/Await, Fetch API) & jQuery Validation
+- **Architecture**: N-Tier (PL, BLL, DAL), Unit of Work, Repository Pattern
 
 ---
 
@@ -122,7 +124,7 @@ graph TD
 ### 2️⃣ Clone the Repository
 ```bash
 git clone https://github.com/Mary-Raafat/GymManagementSystemMVC.git
-cd GymManagementSystem
+cd GymManagementSystemMVC
 ```
 
 ### 3️⃣ Configure Database Connection
@@ -137,7 +139,7 @@ Open `GymManagementSystem/appsettings.json` and adjust your SQL Server connectio
 ```
 
 ### 4️⃣ Build & Run
-Run the following commands in your terminal or use Visual Studio:
+Run the following commands in your terminal:
 
 ```bash
 # Restore dependencies
@@ -146,7 +148,7 @@ dotnet restore
 # Build the solution
 dotnet build
 
-# Run the MVC project (Migrations & Data Seeding run automatically on startup!)
+# Run the MVC project (Migrations & Initial Lookups Seed automatically on startup!)
 dotnet run --project GymManagementSystem/GymManagementSystem.PL.csproj
 ```
 
@@ -159,34 +161,29 @@ GymManagementSystem/
 ├── 📄 README.md                             # Project Documentation
 ├── 📄 GymManagementSystemMVC.sln            # Solution File
 │
-├── 📂 GymManagementSystem/                  # Presentation Layer (ASP.NET Core MVC)
-│   ├── 📂 Controllers/                      # MVC Controllers (Member, Plans, Home)
-│   ├── 📂 Views/                            # Razor UI Views
-│   ├── 📂 wwwroot/                          # Static Assets (CSS, JS, Libraries)
-│   └── 📄 Program.cs                        # App Entry Point & Middleware Pipeline
+├── 📂 GymManagementSystem/                  # Presentation Layer (PL - ASP.NET Core MVC)
+│   ├── 📂 Controllers/                      # MVC Controllers (Member, Trainer, Session, Membership, Plans)
+│   ├── 📂 Views/                            # Razor UI Views & Partial Views
+│   ├── 📂 wwwroot/                          # Static Assets (CSS, JS, Vendor Libraries)
+│   └── 📄 Program.cs                        # Application Entry Point & Middleware Pipeline
 │
-├── 📂 GymManagementSystem.BLL/              # Business Logic Layer
-│   ├── 📂 Services/                         # Business Services & Contracts
-│   ├── 📂 ViewModels/                       # Data Transfer & View Models
-│   └── 📄 ServiceCollectionExtensionsBLL.cs  # DI Service Registration
+├── 📂 GymManagementSystem.BLL/              # Business Logic Layer (BLL)
+│   ├── 📂 Services/                         # Business Services & Contracts (ISessionService, etc.)
+│   ├── 📂 ViewModels/                       # Data Transfer & Form View Models
+│   ├── 📂 Mapping/                          # Extension Methods for Entity-to-ViewModel Mapping
+│   ├── 📂 Common/                           # Result Pattern & Shared Helpers
+│   └── 📄 ServiceCollectionExtensionsBLL.cs  # BLL Dependency Injection Registration
 │
-└── 📂 GymManagementSystem.DAL/              # Data Access Layer
-    ├── 📂 Dbcontexts/                       # GymContext Definition
+└── 📂 GymManagementSystem.DAL/              # Data Access Layer (DAL)
+    ├── 📂 Dbcontexts/                       # GymContext Definition & Configuration
     ├── 📂 Models/                           # Entity Framework Domain Models
-    ├── 📂 Interfaces/                       # Repository Contracts (IGenericRepo, etc.)
-    ├── 📂 Repositories/                     # Repository Implementations
-    ├── 📂 Interceptors/                     # EF Core Audit & Soft-Delete Interceptor
+    ├── 📂 Interfaces/                       # Repository & Unit of Work Contracts
+    ├── 📂 Repositories/                     # Generic & Specific Repository Implementations
+    ├── 📂 Interceptors/                     # EF Core Audit & Soft-Delete Interceptors
     ├── 📂 Migrations/                       # Database Migrations
-    └── 📄 ServiceCollectionExtensionsDAL.cs  # DAL DI Registration
+    ├── 📂 Data/                             # Seed Data Classes (Users, Categories, Plans)
+    └── 📄 ServiceCollectionExtensionsDAL.cs  # DAL Dependency Injection Registration
 ```
-
----
-
-## 📝 Notes & References
-
-All comprehensive study notes, course references, and design decisions are organized in Notion:
-
-🔗 **[Click here to view Notion Course Notes](https://www.notion.so/Functions-in-Generic-repository-and-its-overloads-3d056d47682e803c9134ee564d37371f?source=copy_link)**
 
 ---
 

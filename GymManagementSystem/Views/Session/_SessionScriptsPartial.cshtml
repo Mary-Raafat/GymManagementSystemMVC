@@ -1,0 +1,62 @@
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const categorySelect = document.getElementById("CategoryId");
+        const trainerSelect = document.getElementById("TrainerId");
+
+        if (!categorySelect || !trainerSelect) return;
+
+        // الاحتفاظ برقم المدرب المختار مسبقاً (في حالة Edit أو بعد Validation reload)
+        const initialSelectedTrainerId = trainerSelect.value;
+
+        async function loadTrainers(categoryId, selectedTrainerId = "") {
+            if (!categoryId) {
+                trainerSelect.innerHTML = '<option value="">-- Select Category First --</option>';
+                trainerSelect.disabled = true;
+                return;
+            }
+
+            trainerSelect.disabled = true;
+            trainerSelect.innerHTML = '<option value="">Loading trainers...</option>';
+
+            try {
+                const response = await fetch(`/Session/GetTrainersByCategory?categoryId=${categoryId}`);
+                if (!response.ok) throw new Error("Network error while fetching trainers");
+
+                const trainers = await response.json();
+
+                trainerSelect.innerHTML = '<option value="">-- Select Trainer --</option>';
+
+                if (trainers && trainers.length > 0) {
+                    trainers.forEach(trainer => {
+                        const option = document.createElement("option");
+                        option.value = trainer.id ?? trainer.Id;
+                        option.textContent = trainer.name ?? trainer.Name;
+                        if (selectedTrainerId && option.value.toString() === selectedTrainerId.toString()) {
+                            option.selected = true;
+                        }
+                        trainerSelect.appendChild(option);
+                    });
+                    trainerSelect.disabled = false;
+                } else {
+                    trainerSelect.innerHTML = '<option value="">-- No trainers available for this category --</option>';
+                }
+            } catch (error) {
+                console.error("Error loading trainers:", error);
+                trainerSelect.innerHTML = '<option value="">-- Error loading trainers --</option>';
+            }
+        }
+
+        // إذا كانت الفئة محددة مسبقاً عند فتح الصفحة (كما في Edit أو بعد خطأ Validation)
+        if (categorySelect.value) {
+            loadTrainers(categorySelect.value, initialSelectedTrainerId);
+        } else {
+            trainerSelect.innerHTML = '<option value="">-- Select Category First --</option>';
+            trainerSelect.disabled = true;
+        }
+
+        // عند تغيير الفئة
+        categorySelect.addEventListener("change", function () {
+            loadTrainers(this.value);
+        });
+    });
+</script>

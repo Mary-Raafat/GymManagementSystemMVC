@@ -1,6 +1,7 @@
 using GymManagementSystem.BLL.Common;
 using GymManagementSystem.BLL.Mapping;
 using GymManagementSystem.BLL.ViewModels.Session;
+using GymManagementSystem.DAL.Enums;
 using GymManagementSystem.DAL.Interfaces;
 using GymManagementSystem.DAL.Models;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +14,8 @@ using System.Threading.Tasks;
 
 namespace GymManagementSystem.BLL.Services
 {
-    public class SessionService(IUnitOfWork unitOfWork, ILogger<SessionService>
+    public class SessionService(IUnitOfWork unitOfWork,
+        ILogger<SessionService>
         logger) : ISessionService
     {
         private readonly IUnitOfWork _unitOfWork = unitOfWork;
@@ -81,7 +83,9 @@ namespace GymManagementSystem.BLL.Services
         public async Task<SessionDetailsViewModel?> GetDetailsAsync(int id, CancellationToken ct = default)
         {
             var session = await _unitOfWork.Sessions.GetByIdAsync( 
-                id: id,
+                id: id
+                , trackChanges: false,
+                //الاحسن يتنقل في ال queryService و يرجعلك dto 
                 include: query => query.Include(s => s.Trainer)
                                        .Include(s => s.Category)
                                        .Include(s => s.Bookings),
@@ -89,15 +93,17 @@ namespace GymManagementSystem.BLL.Services
 
             if (session == null)
             {
+                //هبعتله parameter "Serilog"
                 _logger.LogWarning("Session with ID {SessionId} not found.", id);
                 return null;
             }
-
+            //ViewModel → SessionDetailsViewModel Manual Mapping
             return session.ToDetailsViewModel();
         }
 
         public async Task<EditSessionViewModel?> GetForEditAsync(int id, CancellationToken ct = default)
         {
+            //ممكن تزود Session Status ك Enum و تديلها الوان تطلعلك لما يحصل ال status ده في ال view
             var session = await _unitOfWork.Sessions.GetByIdAsync(id: id, cancellationToken: ct);
             if (session == null)
             {
@@ -235,6 +241,30 @@ namespace GymManagementSystem.BLL.Services
                 Id = c.ID,
                 Name = c.Name
             });
+        }
+
+        public async Task<IEnumerable<SessionLookupViewModel>> GetTrainersByCategory(int categoryid, CancellationToken ct = default)
+        {
+            if (categoryid <= 0)
+                return Enumerable.Empty<SessionLookupViewModel>();
+
+            var sessions = await _unitOfWork.Sessions.GetAllAsync(
+                includes: [s => s.Trainer],
+                predicate: s => s.CategoryId == categoryid,
+                trackChanges: false,
+                cancellationToken: ct
+            );
+
+            var trainers = 
+                sessions.Where(s => s.Trainer != null)
+                .Select(s => new SessionLookupViewModel
+                {
+                    Id = s.Trainer.ID,
+                    Name = s.Trainer.Name
+                })
+                .DistinctBy(t => t.Id);
+
+            return trainers;
         }
     }
 }

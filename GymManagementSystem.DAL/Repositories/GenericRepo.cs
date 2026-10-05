@@ -63,13 +63,14 @@ namespace GymManagementSystem.DAL.Implementation
 
         public async Task<IReadOnlyList<TEntity>> GetAllAsync(
             Expression<Func<TEntity, object>>[] includes,
+            Expression<Func<TEntity, bool>> predicate,
             bool trackChanges = false,
             CancellationToken cancellationToken = default)
         {
             IQueryable<TEntity> query = _dbSet;
             if (!trackChanges) query = query.AsNoTracking();
             query = ApplyIncludes(query, includes, null);
-            return await query.ToListAsync(cancellationToken);
+            return await query.Where(predicate).ToListAsync(cancellationToken);
         }
 
         public async Task<IReadOnlyList<TEntity>> GetAllAsync(
