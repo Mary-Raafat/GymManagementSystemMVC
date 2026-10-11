@@ -1,0 +1,34 @@
+[
+  {
+    "name": "Basic",
+    "description": "Access to gym equipment only.",
+    "durationDays": 30,
+    "price": 300,
+    "isActive": true,
+    "isDeleted": false
+  },
+  {
+    "name": "Standard",
+    "description": "Gym access with group classes.",
+    "durationDays": 90,
+    "price": 800,
+    "isActive": true,
+    "isDeleted": false
+  },
+  {
+    "name": "Premium",
+    "description": "Gym access with personal trainer.",
+    "durationDays": 180,
+    "price": 1500,
+    "isActive": true,
+    "isDeleted": false
+  },
+  {
+    "name": "VIP",
+    "description": "Unlimited access with all premium services.",
+    "durationDays": 365,
+    "price": 2500,
+    "isActive": true,
+    "isDeleted": false
+  }
+]

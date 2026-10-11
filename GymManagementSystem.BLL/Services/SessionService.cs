@@ -101,22 +101,13 @@ namespace GymManagementSystem.BLL.Services
             return session.ToDetailsViewModel();
         }
 
-        public async Task<EditSessionViewModel?> GetForEditAsync(int id, CancellationToken ct = default)
-        {
-            //ممكن تزود Session Status ك Enum و تديلها الوان تطلعلك لما يحصل ال status ده في ال view
-            var session = await _unitOfWork.Sessions.GetByIdAsync(id: id, cancellationToken: ct);
-            if (session == null)
-            {
-                _logger.LogWarning("Session with ID {SessionId} not found for editing.", id);
-                return null;
-            }
 
-            return session.ToEditViewModel();
-        }
-
+        
         public async Task<Result> UpdateAsync(EditSessionViewModel viewModel, CancellationToken cancellationToken = default)
         {
-            var session = await _unitOfWork.Sessions.GetByIdAsync(id: viewModel.Id, cancellationToken: cancellationToken);
+            var session = await _unitOfWork.Sessions.GetByIdAsync(id: viewModel.Id,
+                trackChanges: false, 
+                cancellationToken: cancellationToken);
             if (session == null)
             {
                 _logger.LogWarning("Session update failed: Session ID {SessionId} not found.", viewModel.Id);
@@ -131,13 +122,11 @@ namespace GymManagementSystem.BLL.Services
 
             var normalizedDescription = viewModel.Description.Trim();
             bool isDescriptionChanged = session.Description != normalizedDescription;
-            bool isCapacityChanged = session.Capacity != viewModel.Capacity;
             bool isStartDateChanged = session.StartDate != viewModel.StartDate;
             bool isEndDateChanged = session.EndDate != viewModel.EndDate;
             bool isTrainerChanged = session.TrainerId != viewModel.TrainerId;
-            bool isCategoryChanged = session.CategoryId != viewModel.CategoryId;
 
-            if (!isDescriptionChanged && !isCapacityChanged && !isStartDateChanged && !isEndDateChanged && !isTrainerChanged && !isCategoryChanged)
+            if (!isDescriptionChanged  && !isStartDateChanged && !isEndDateChanged && !isTrainerChanged )
             {
                 _logger.LogInformation("No changes detected for session ID: {SessionId}", viewModel.Id);
                 return Result.Failure("No changes were made.");
@@ -153,15 +142,7 @@ namespace GymManagementSystem.BLL.Services
                 }
             }
 
-            if (isCategoryChanged)
-            {
-                var categoryExists = await _unitOfWork.Categories.ExistAsync(c => c.ID == viewModel.CategoryId, cancellationToken);
-                if (!categoryExists)
-                {
-                    _logger.LogWarning("Session update failed: Category ID {CategoryId} does not exist.", viewModel.CategoryId);
-                    return Result.Failure("Selected category does not exist.", nameof(EditSessionViewModel.CategoryId));
-                }
-            }
+
 
             if (isTrainerChanged || isStartDateChanged || isEndDateChanged)
             {
@@ -173,11 +154,9 @@ namespace GymManagementSystem.BLL.Services
             }
 
             session.Description = normalizedDescription;
-            session.Capacity = viewModel.Capacity;
             session.StartDate = viewModel.StartDate;
             session.EndDate = viewModel.EndDate;
             session.TrainerId = viewModel.TrainerId;
-            session.CategoryId = viewModel.CategoryId;
 
             _unitOfWork.Sessions.Update(session);
             var rowsAffected = await _unitOfWork.CompleteAsync(cancellationToken);
@@ -191,6 +170,18 @@ namespace GymManagementSystem.BLL.Services
             return Result.Success();
         }
 
+        public async Task<EditSessionViewModel?> GetForEditAsync(int id, CancellationToken ct = default)
+        {
+            //ممكن تزود Session Status ك Enum و تديلها الوان تطلعلك لما يحصل ال status ده في ال view
+            var session = await _unitOfWork.Sessions.GetByIdAsync(id: id, cancellationToken: ct);
+            if (session == null)
+            {
+                _logger.LogWarning("Session with ID {SessionId} not found for editing.", id);
+                return null;
+            }
+
+            return session.ToEditViewModel();
+        }
         public async Task<Result> DeleteAsync(int id, CancellationToken cancellationToken = default)
         {
             var session = await _unitOfWork.Sessions.GetByIdAsync(

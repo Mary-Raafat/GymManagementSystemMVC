@@ -8,9 +8,6 @@ using GymManagementSystem.DAL;
 using GymManagementSystem.BLL.Services;
 using Serilog;
 
-
-
-
 var builder = WebApplication.CreateBuilder(args);
 
 // Configure Serilog
@@ -42,6 +39,7 @@ else
 
 app.UseSerilogRequestLogging();
 
+//wwwroot 
 app.UseStaticFiles();
 
 app.UseRouting();
